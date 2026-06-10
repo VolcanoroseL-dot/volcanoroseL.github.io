@@ -1,0 +1,928 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>修 · 战国玉璜</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+<script>/*AD_INLINED*/
+/* ================================================================
+   修 · 广告位 + 打赏组件
+   - Ad.openLamp({...})    关卡完成「添灯」
+   - Ad.openSkin({...})    博物馆皮肤「供奉」
+   - Ad.openRevive({...})  小考「翻签」
+   - Ad.openRubbing({...}) 通关「拓片礼」
+   - Ad.getLamps() / Ad.spendLamps(n)  灯油会计
+   状态: localStorage.lamps (int) / localStorage.adseen.{key} (1)
+=================================================================*/
+(function(){
+  if(window.Ad) return;
+
+  /* ---------- styles ---------- */
+  const css = `
+  .ad-mask{position:fixed;inset:0;background:rgba(8,6,4,.78);backdrop-filter:blur(6px);
+    z-index:9000;display:flex;align-items:center;justify-content:center;
+    animation:adFade .4s ease;font-family:"Noto Serif SC",serif;}
+  .ad-card{width:min(440px,90vw);background:linear-gradient(180deg,#1a1612,#0e0a08);
+    border:1px solid rgba(200,150,90,.3);padding:32px 28px;color:#f2e7d0;
+    box-shadow:0 20px 60px rgba(0,0,0,.6);position:relative;}
+  .ad-close{position:absolute;top:10px;right:14px;width:24px;height:24px;
+    background:none;border:none;color:rgba(242,231,208,.4);cursor:pointer;font-size:18px;}
+  .ad-close:hover{color:#c8965a;}
+  .ad-lantern{width:60px;height:78px;margin:0 auto 14px;position:relative;
+    animation:adRise 2.2s ease-in-out infinite alternate;}
+  .ad-lantern::before{content:"";position:absolute;inset:8px 6px 12px 6px;
+    background:radial-gradient(ellipse at center,#ffd98a 0%,#c87a2a 70%,#7a3a18 100%);
+    border-radius:50% / 60%;box-shadow:0 0 30px rgba(255,180,80,.5),inset 0 0 12px rgba(80,30,10,.4);}
+  .ad-lantern::after{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);
+    width:30px;height:6px;background:#3a2618;border-radius:2px;}
+  .ad-title{text-align:center;font-size:18px;letter-spacing:.3em;color:#c8965a;margin-bottom:10px;}
+  .ad-sub{text-align:center;font-size:12px;letter-spacing:.15em;color:rgba(242,231,208,.6);margin-bottom:18px;line-height:1.8;}
+  .ad-reward{margin:18px 0;padding:12px 14px;background:rgba(200,150,90,.06);
+    border-left:2px solid #c8965a;font-size:12px;letter-spacing:.1em;color:#e6c898;}
+  .ad-actions{display:flex;flex-direction:column;gap:10px;margin-top:18px;}
+  .ad-btn{padding:13px;font-size:12px;letter-spacing:.4em;cursor:pointer;
+    transition:all .3s ease;font-family:inherit;border:none;}
+  .ad-btn-primary{background:#a83a2a;color:#f2e7d0;}
+  .ad-btn-primary:hover{background:#c44a3a;transform:translateY(-1px);}
+  .ad-btn-ghost{background:transparent;color:#c8965a;border:1px solid rgba(200,150,90,.4);}
+  .ad-btn-ghost:hover{background:rgba(200,150,90,.1);}
+  .ad-btn-skip{background:transparent;color:rgba(242,231,208,.4);font-size:11px;letter-spacing:.3em;}
+  .ad-btn-skip:hover{color:rgba(242,231,208,.7);}
+  .ad-foot{margin-top:14px;text-align:center;font-size:10px;letter-spacing:.3em;color:rgba(242,231,208,.3);}
+  .ad-lamps{display:inline-block;margin-left:8px;color:#c8965a;}
+
+  /* ====== 广告播放阶段 ====== */
+  .ad-play{padding:40px 28px;text-align:center;}
+  .ad-play .smoke{width:80px;height:80px;margin:0 auto 18px;position:relative;}
+  .ad-play .smoke::before,.ad-play .smoke::after{content:"";position:absolute;left:50%;bottom:0;
+    width:14px;height:14px;background:rgba(200,150,90,.3);border-radius:50%;
+    animation:adSmoke 2.4s linear infinite;}
+  .ad-play .smoke::after{animation-delay:1.2s;}
+  .ad-play .incense{position:absolute;left:calc(50% - 1px);bottom:0;width:2px;height:60px;
+    background:linear-gradient(180deg,#c87a2a,#3a2618);}
+  .ad-play .glow{position:absolute;left:calc(50% - 4px);top:14px;width:8px;height:8px;
+    background:#ffaa55;border-radius:50%;box-shadow:0 0 16px #ff8833;}
+  .ad-play h3{font-size:15px;letter-spacing:.3em;color:#c8965a;margin-bottom:10px;}
+  .ad-play .sponsor{font-size:11px;letter-spacing:.25em;color:rgba(242,231,208,.45);margin-bottom:22px;}
+  .ad-bar{width:100%;height:3px;background:rgba(242,231,208,.1);overflow:hidden;margin-bottom:8px;}
+  .ad-bar span{display:block;height:100%;background:linear-gradient(90deg,#c87a2a,#ffd98a);width:0;}
+  .ad-time{font-size:11px;letter-spacing:.2em;color:rgba(242,231,208,.5);}
+  .ad-skip-late{margin-top:18px;font-size:10px;letter-spacing:.3em;color:rgba(242,231,208,.3);}
+
+  /* ====== 打赏 ====== */
+  .tea-card{text-align:center;padding:30px 24px;}
+  .tea-card h3{font-size:16px;letter-spacing:.3em;color:#c8965a;margin-bottom:6px;}
+  .tea-card .tea-sub{font-size:11px;letter-spacing:.25em;color:rgba(242,231,208,.5);margin-bottom:20px;}
+  .tea-amts{display:flex;gap:10px;justify-content:center;margin-bottom:18px;}
+  .tea-amts button{flex:1;padding:14px 0;font-size:13px;letter-spacing:.2em;
+    border:1px solid rgba(200,150,90,.4);background:transparent;color:#c8965a;cursor:pointer;transition:.3s;}
+  .tea-amts button:hover{background:rgba(200,150,90,.1);}
+  .tea-qr{width:160px;height:160px;margin:0 auto 12px;background:#f2e7d0;
+    display:flex;align-items:center;justify-content:center;font-size:11px;color:#3a2618;letter-spacing:.2em;text-align:center;line-height:1.6;}
+  .tea-tip{font-size:11px;letter-spacing:.2em;color:rgba(242,231,208,.45);}
+
+  @keyframes adFade{from{opacity:0}to{opacity:1}}
+  @keyframes adRise{from{transform:translateY(2px)}to{transform:translateY(-4px)}}
+  @keyframes adSmoke{
+    0%{transform:translate(-50%,0) scale(.6);opacity:.7}
+    100%{transform:translate(-50%,-80px) scale(2);opacity:0}
+  }
+  `;
+  const s = document.createElement("style");
+  s.textContent = css;
+  document.head.appendChild(s);
+
+  /* ---------- state ---------- */
+  function readInt(k){ try{ return parseInt(localStorage.getItem(k))||0; }catch(e){ return 0; } }
+  function writeInt(k,v){ try{ localStorage.setItem(k,String(v)); }catch(e){} }
+
+  function makeMask(){
+    const m = document.createElement("div");
+    m.className = "ad-mask";
+    document.body.appendChild(m);
+    return m;
+  }
+  function close(mask){ if(mask && mask.parentNode) mask.parentNode.removeChild(mask); }
+
+  /* ---------- 15s ad playback ---------- */
+  function playAd(mask, opts){
+    const dur = opts.duration || 15;
+    const card = mask.querySelector(".ad-card");
+    card.innerHTML = `
+      <div class="ad-play">
+        <div class="smoke">
+          <div class="incense"></div><div class="glow"></div>
+        </div>
+        <h3>致 谢 方 · 一 炷 香</h3>
+        <div class="sponsor">${opts.sponsor || "本期由「中国国家博物馆 · 文创」轻致谢"}</div>
+        <div class="ad-bar"><span id="adBar"></span></div>
+        <div class="ad-time"><span id="adTime">${dur}</span> s</div>
+        <div class="ad-skip-late" id="adSkipLate" hidden>5 秒后可跳过</div>
+      </div>
+    `;
+    const bar = card.querySelector("#adBar");
+    const time = card.querySelector("#adTime");
+    const skipEl = card.querySelector("#adSkipLate");
+    let start = performance.now();
+    let cancelled = false;
+    let skippable = false;
+    setTimeout(()=>{ skippable = true; skipEl.hidden = false; skipEl.textContent = "提 前 跳 过"; skipEl.style.cursor="pointer"; skipEl.onclick=()=>{ if(skippable){ finish(true); } }; }, Math.min(10000, dur*1000*0.7));
+    function tick(){
+      if(cancelled) return;
+      const t = (performance.now() - start) / 1000;
+      const p = Math.min(1, t/dur);
+      bar.style.width = (p*100)+"%";
+      time.textContent = Math.max(0, Math.ceil(dur - t));
+      if(p >= 1){ finish(false); return; }
+      requestAnimationFrame(tick);
+    }
+    function finish(early){
+      cancelled = true;
+      close(mask);
+      // 给奖励
+      if(opts.onComplete) opts.onComplete(early);
+    }
+    tick();
+  }
+
+  /* ---------- tea jar ---------- */
+  function showTea(){
+    const mask = makeMask();
+    const card = document.createElement("div");
+    card.className = "ad-card";
+    card.innerHTML = `
+      <button class="ad-close">×</button>
+      <div class="tea-card">
+        <h3>请 创 作 者 一 杯 茶</h3>
+        <div class="tea-sub">你的心意会让这件治愈小作品走得更远</div>
+        <div class="tea-amts">
+          <button data-a="1">¥ 1</button>
+          <button data-a="3">¥ 3</button>
+          <button data-a="6">¥ 6</button>
+        </div>
+        <div class="tea-qr">微信赞赏码<br/>（正式版显示）</div>
+        <div class="tea-tip">长按识别 · 或截图保存</div>
+      </div>
+    `;
+    mask.appendChild(card);
+    card.querySelector(".ad-close").onclick = ()=>close(mask);
+    mask.onclick = e=>{ if(e.target === mask) close(mask); };
+    card.querySelectorAll(".tea-amts button").forEach(b=>{
+      b.onclick = ()=>{
+        const a = b.dataset.a;
+        card.querySelector(".tea-qr").innerHTML = `请扫码支付 ¥${a}<br/><span style="font-size:9px;color:#7a4a2a;">（演示二维码）</span>`;
+      };
+    });
+  }
+
+  /* ================ API ================ */
+  const Ad = {
+    getLamps(){ return readInt("lamps"); },
+    addLamps(n){ writeInt("lamps", readInt("lamps")+n); },
+    spendLamps(n){
+      const cur = readInt("lamps");
+      if(cur < n) return false;
+      writeInt("lamps", cur - n);
+      return true;
+    },
+
+    /* ---------- P0 关卡完成「添灯」 ---------- */
+    openLamp(opts){
+      // opts: { artifact, lampKey, onReward, onSkip, allowTea=true }
+      const mask = makeMask();
+      const card = document.createElement("div");
+      card.className = "ad-card";
+      const lamps = this.getLamps();
+      card.innerHTML = `
+        <button class="ad-close">×</button>
+        <div class="ad-lantern"></div>
+        <div class="ad-title">添 一 盏 灯</div>
+        <div class="ad-sub">
+          为这件 ${opts.artifact||"文物"} 添一盏灯，<br/>
+          唤回它更多的记忆 ——
+        </div>
+        <div class="ad-reward">
+          · 解 锁 完 整 图 鉴（高清出土照 · 修复师手记）<br/>
+          · 获 得 一 盏 灯 油（可供奉博物馆皮肤）
+        </div>
+        <div class="ad-actions">
+          <button class="ad-btn ad-btn-primary" id="adGo">添 灯（约 15 秒）</button>
+          ${opts.allowTea === false ? "" : `<button class="ad-btn ad-btn-ghost" id="adTea">请 作 者 一 杯 茶</button>`}
+          <button class="ad-btn ad-btn-skip" id="adSkip">素 心 而 过</button>
+        </div>
+        <div class="ad-foot">
+          已添灯 <span class="ad-lamps">${lamps} 盏</span>
+          · 今日添灯人次 ${(7000 + Math.floor(Math.random()*999)).toLocaleString()}
+        </div>
+      `;
+      mask.appendChild(card);
+      card.querySelector(".ad-close").onclick = ()=>{ close(mask); if(opts.onSkip) opts.onSkip(); };
+      card.querySelector("#adSkip").onclick = ()=>{ close(mask); if(opts.onSkip) opts.onSkip(); };
+      card.querySelector("#adGo").onclick = ()=>{
+        playAd(mask, {
+          duration: 15,
+          sponsor: "本期由「中国国家博物馆 · 文创」轻致谢",
+          onComplete: ()=>{
+            Ad.addLamps(1);
+            if(opts.lampKey){ try{ localStorage.setItem("adseen."+opts.lampKey, "1"); }catch(e){} }
+            if(opts.onReward) opts.onReward();
+          }
+        });
+      };
+      const teaBtn = card.querySelector("#adTea");
+      if(teaBtn) teaBtn.onclick = showTea;
+    },
+
+    /* ---------- P1 博物馆皮肤「供奉」 ---------- */
+    openSkin(opts){
+      // opts: { skinName, needLamps, onUnlock, onCancel }
+      const mask = makeMask();
+      const card = document.createElement("div");
+      card.className = "ad-card";
+      const have = this.getLamps();
+      const need = opts.needLamps || 3;
+      const enough = have >= need;
+      card.innerHTML = `
+        <button class="ad-close">×</button>
+        <div class="ad-lantern"></div>
+        <div class="ad-title">供 奉 · ${opts.skinName||"限定皮肤"}</div>
+        <div class="ad-sub">
+          此皮肤需供奉 <span style="color:#c8965a">${need}</span> 盏灯油<br/>
+          你现有 <span style="color:#c8965a">${have}</span> 盏
+        </div>
+        <div class="ad-reward" style="text-align:center;">
+          ${enough
+            ? `灯油已足 · 一键供奉即可点亮`
+            : `还差 ${need-have} 盏 · 可即时添灯补足`}
+        </div>
+        <div class="ad-actions">
+          ${enough
+            ? `<button class="ad-btn ad-btn-primary" id="skinGo">供 奉 · 点 亮 皮 肤</button>`
+            : `<button class="ad-btn ad-btn-primary" id="skinAdd">添 一 盏 灯（约 15 秒）</button>`}
+          <button class="ad-btn ad-btn-ghost" id="skinTea">请 作 者 一 杯 茶</button>
+          <button class="ad-btn ad-btn-skip" id="skinSkip">改 日 再 来</button>
+        </div>
+      `;
+      mask.appendChild(card);
+      card.querySelector(".ad-close").onclick = ()=>{ close(mask); if(opts.onCancel) opts.onCancel(); };
+      card.querySelector("#skinSkip").onclick = ()=>{ close(mask); if(opts.onCancel) opts.onCancel(); };
+      card.querySelector("#skinTea").onclick = showTea;
+      const go = card.querySelector("#skinGo");
+      if(go) go.onclick = ()=>{
+        Ad.spendLamps(need);
+        close(mask);
+        if(opts.onUnlock) opts.onUnlock();
+      };
+      const add = card.querySelector("#skinAdd");
+      if(add) add.onclick = ()=>{
+        playAd(mask, {
+          duration: 15,
+          sponsor: "本期由「故宫文创」轻致谢",
+          onComplete: ()=>{
+            Ad.addLamps(1);
+            // 重新打开（更新进度）
+            setTimeout(()=>Ad.openSkin(opts), 200);
+          }
+        });
+      };
+    },
+
+    /* ---------- P2 小考「翻签」 ---------- */
+    openRevive(opts){
+      // opts: { onRevive, onGiveUp }
+      const mask = makeMask();
+      const card = document.createElement("div");
+      card.className = "ad-card";
+      card.innerHTML = `
+        <button class="ad-close">×</button>
+        <div class="ad-lantern"></div>
+        <div class="ad-title">这 一 签 · 未 中</div>
+        <div class="ad-sub">
+          要不要翻一支救签？<br/>
+          翻签可多得一次答题机会
+        </div>
+        <div class="ad-actions">
+          <button class="ad-btn ad-btn-primary" id="revGo">翻 签（约 15 秒）</button>
+          <button class="ad-btn ad-btn-skip" id="revSkip">认 命 · 重 开</button>
+        </div>
+      `;
+      mask.appendChild(card);
+      card.querySelector(".ad-close").onclick = ()=>{ close(mask); if(opts.onGiveUp) opts.onGiveUp(); };
+      card.querySelector("#revSkip").onclick = ()=>{ close(mask); if(opts.onGiveUp) opts.onGiveUp(); };
+      card.querySelector("#revGo").onclick = ()=>{
+        playAd(mask, {
+          duration: 15,
+          sponsor: "本期由「上海博物馆 · 数字展」轻致谢",
+          onComplete: ()=>{
+            Ad.addLamps(1);
+            if(opts.onRevive) opts.onRevive();
+          }
+        });
+      };
+    },
+
+    /* ---------- P3 通关「拓片礼」 ---------- */
+    openRubbing(opts){
+      // opts: { chapter, onGenerate, onSkip }
+      const mask = makeMask();
+      const card = document.createElement("div");
+      card.className = "ad-card";
+      card.innerHTML = `
+        <button class="ad-close">×</button>
+        <div class="ad-lantern"></div>
+        <div class="ad-title">拓 片 留 念</div>
+        <div class="ad-sub">
+          为「${opts.chapter||"卷一·格物"}」通关<br/>
+          制作一张你的修复拓片，可分享朋友圈
+        </div>
+        <div class="ad-reward">
+          · 高 清 PNG · 含你修复过的全部文物<br/>
+          · 可下载、可一键分享
+        </div>
+        <div class="ad-actions">
+          <button class="ad-btn ad-btn-primary" id="rubGo">制 作 拓 片（约 15 秒）</button>
+          <button class="ad-btn ad-btn-ghost" id="rubTea">请 作 者 一 杯 茶</button>
+          <button class="ad-btn ad-btn-skip" id="rubSkip">下 次 再 说</button>
+        </div>
+      `;
+      mask.appendChild(card);
+      card.querySelector(".ad-close").onclick = ()=>{ close(mask); if(opts.onSkip) opts.onSkip(); };
+      card.querySelector("#rubSkip").onclick = ()=>{ close(mask); if(opts.onSkip) opts.onSkip(); };
+      card.querySelector("#rubTea").onclick = showTea;
+      card.querySelector("#rubGo").onclick = ()=>{
+        playAd(mask, {
+          duration: 15,
+          sponsor: "本期由「陕西历史博物馆」轻致谢",
+          onComplete: ()=>{
+            Ad.addLamps(1);
+            if(opts.onGenerate) opts.onGenerate();
+          }
+        });
+      };
+    },
+
+    showTea: showTea
+  };
+
+  window.Ad = Ad;
+})();
+
+</script>
+<style>
+  :root{
+    --paper:#eee9dc;
+    --ink:#1a1a1a;
+    --ink-soft:#3b3531;
+    --jade:#7a9a8a;
+    --jade-light:#c8d8c8;
+    --jade-dark:#3a5a4e;
+    --gold:#a3812a;
+    --red:#9b2c2c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;font-family:"Noto Serif SC",serif;color:var(--ink);background:var(--paper);}
+  button,a{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;text-decoration:none;}
+  [hidden]{display:none!important;}
+
+  .paper, body{
+    background-color:var(--paper);
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(122,154,138,.07) 0, transparent 60%),
+      radial-gradient(circle at 80% 70%, rgba(90,120,100,.05) 0, transparent 60%),
+      repeating-linear-gradient(45deg, rgba(0,0,0,.012) 0 1px, transparent 1px 6px);
+  }
+
+  .overlay{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:24px;animation:fade .8s ease;}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+
+  .intro-npc{
+    max-width:760px;display:grid;grid-template-columns:auto 1fr;gap:48px;
+    text-align:left;align-items:center;
+  }
+  .npc-portrait{text-align:center;}
+  .npc-name{font-size:18px;letter-spacing:.4em;margin-top:14px;font-weight:600;}
+  .npc-id{font-size:11px;letter-spacing:.3em;color:var(--ink-soft);margin-top:4px;}
+  .npc-dialog{padding-left:32px;border-left:1px solid rgba(0,0,0,.12);}
+  .npc-speech{font-size:17px;line-height:2.1;color:var(--ink);min-height:170px;margin-bottom:24px;}
+  .npc-speech .line{display:block;opacity:0;animation:lineIn .6s forwards;}
+  .npc-speech .line.q{color:var(--ink-soft);font-style:italic;font-size:16px;}
+  @keyframes lineIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  .npc-artifact{
+    display:inline-flex;gap:10px;align-items:center;padding:8px 14px;margin-bottom:24px;
+    background:rgba(122,154,138,.13);border-left:2px solid var(--jade);
+    opacity:0;animation:lineIn .6s forwards;animation-delay:2.4s;
+  }
+  .ar-tag{font-size:10px;letter-spacing:.4em;color:var(--jade-dark);}
+  .ar-name{font-size:12px;letter-spacing:.15em;color:var(--ink-soft);}
+  #startBtn{padding:14px 48px;font-size:15px;letter-spacing:.4em;border:1px solid var(--ink);background:transparent;transition:all .3s;}
+  #startBtn:hover{background:var(--ink);color:var(--paper);}
+  .intro-npc #startBtn{opacity:0;animation:lineIn .6s forwards;animation-delay:2.8s;}
+
+  #scene{position:fixed;inset:0;display:flex;flex-direction:column;}
+  .topbar{position:relative;display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid rgba(0,0,0,.06);}
+  .title-zh{font-size:14px;letter-spacing:.4em;color:var(--ink-soft);}
+  .progress{display:flex;align-items:center;gap:12px;}
+  .progress-bar{width:140px;height:2px;background:rgba(0,0,0,.1);position:relative;overflow:hidden;}
+  .progress-bar span{position:absolute;left:0;top:0;height:100%;width:0;background:linear-gradient(90deg,var(--jade),var(--jade-light));transition:width .3s ease;}
+  .progress-text{font-size:12px;letter-spacing:.1em;color:var(--jade-dark);min-width:36px;text-align:right;}
+
+  .stage{flex:1;position:relative;display:grid;place-items:center;overflow:hidden;}
+  .paper{position:absolute;inset:0;}
+  #board{position:absolute;width:min(95vmin, 760px);height:auto;max-height:90%;top:50%;left:50%;transform:translate(-50%,-50%);touch-action:none;}
+  .hint{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);font-size:12px;letter-spacing:.4em;color:var(--ink-soft);opacity:.65;pointer-events:none;}
+
+  .toolbar{display:flex;justify-content:center;gap:24px;padding:20px 28px 28px;border-top:1px solid rgba(0,0,0,.06);}
+  .tool{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 18px;border-radius:4px;transition:all .3s;position:relative;}
+  .tool-icon{width:44px;height:44px;display:grid;place-items:center;border:1px solid var(--ink);font-family:"Ma Shan Zheng",serif;font-size:22px;transition:all .3s;}
+  .tool-name{font-size:11px;letter-spacing:.3em;color:var(--ink-soft);}
+  .tool.active .tool-icon{background:var(--jade);color:var(--paper);border-color:var(--jade);box-shadow:0 0 0 4px rgba(122,154,138,.2);}
+  .tool:not(.active){opacity:.45;}
+  .tool-lock{position:absolute;bottom:-4px;font-size:10px;color:var(--jade-dark);letter-spacing:.1em;}
+
+  #done{background:rgba(238,233,220,.94);backdrop-filter:blur(6px);}
+  .card{max-width:520px;width:100%;background:var(--paper);border:1px solid rgba(0,0,0,.1);padding:40px 36px 28px;position:relative;animation:rise .8s cubic-bezier(.2,.8,.2,1);}
+  @keyframes rise{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+  .card::before{content:"";position:absolute;inset:6px;border:1px solid rgba(0,0,0,.08);pointer-events:none;}
+  .card-head{text-align:center;margin-bottom:28px;}
+  .card-tag{display:inline-block;font-size:11px;letter-spacing:.6em;color:var(--jade-dark);padding-bottom:6px;border-bottom:1px solid var(--jade-dark);margin-bottom:18px;}
+  .card-head h2{font-size:24px;letter-spacing:.15em;font-weight:600;margin-bottom:6px;}
+  .card-sub{font-size:12px;letter-spacing:.3em;color:var(--ink-soft);}
+  .card-body p{font-size:14px;line-height:2;color:var(--ink-soft);margin-bottom:18px;text-align:justify;}
+  .card-body em{color:var(--jade-dark);font-style:normal;font-weight:600;}
+  .story{background:rgba(122,154,138,.1);padding:18px 20px;border-left:2px solid var(--jade);font-size:13px!important;}
+  .story strong{color:var(--ink);}
+  .quote{text-align:center;font-size:13px!important;color:var(--ink-soft);font-style:italic;margin-top:8px!important;}
+  .card-actions{display:flex;gap:12px;margin-top:28px;}
+  .card-actions button{flex:1;padding:12px;font-size:13px;letter-spacing:.3em;transition:all .3s;}
+  .btn-ghost{border:1px solid var(--ink-soft);color:var(--ink-soft);}
+  .btn-ghost:hover{background:var(--ink-soft);color:var(--paper);}
+  .btn-primary{background:var(--ink);color:var(--paper);}
+  .btn-primary:hover{background:var(--jade-dark);}
+
+  #finale{position:fixed;inset:0;z-index:40;pointer-events:none;display:grid;place-items:center;}
+  #finale .vignette{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%, transparent 30%, rgba(0,0,0,.4) 100%);opacity:0;transition:opacity 2s ease;}
+  #finale.show .vignette{opacity:1;}
+  .finale-title{position:relative;text-align:center;color:var(--paper);text-shadow:0 2px 12px rgba(0,0,0,.5);opacity:0;transform:translateY(20px);transition:opacity 1.6s ease, transform 1.6s ease;}
+  #finale.show .finale-title{opacity:1;transform:none;}
+  .finale-title .zh{font-size:44px;letter-spacing:.4em;font-weight:600;display:flex;justify-content:center;gap:.18em;}
+  .finale-title .zh span{display:inline-block;opacity:0;animation:char-in .8s forwards;}
+  #finale.show .finale-title .zh span:nth-child(1){animation-delay:.2s;}
+  #finale.show .finale-title .zh span:nth-child(2){animation-delay:.45s;}
+  #finale.show .finale-title .zh span:nth-child(3){animation-delay:.7s;}
+  #finale.show .finale-title .zh span:nth-child(4){animation-delay:.95s;}
+  #finale.show .finale-title .zh span:nth-child(5){animation-delay:1.2s;}
+  #finale.show .finale-title .zh span:nth-child(6){animation-delay:1.45s;}
+  #finale.show .finale-title .zh span:nth-child(7){animation-delay:1.7s;}
+  @keyframes char-in{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;}}
+  .finale-title .en{margin-top:18px;font-size:12px;letter-spacing:.5em;color:rgba(255,255,255,.75);}
+
+  .sound-toggle{position:absolute;right:24px;top:18px;width:28px;height:28px;display:grid;place-items:center;border:1px solid rgba(0,0,0,.15);border-radius:50%;font-size:12px;color:var(--ink-soft);transition:all .3s;}
+  .sound-toggle:hover{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+
+  /* jade pieces */
+  .piece{cursor:grab;transition:filter .3s;}
+  .piece:active{cursor:grabbing;}
+  .piece.placed{cursor:default;animation:snapIn .4s ease;}
+  @keyframes snapIn{
+    0%{filter:brightness(1.5) drop-shadow(0 0 8px rgba(212,175,55,.8));}
+    100%{filter:none;}
+  }
+  .slot{stroke-dasharray:4 3;}
+
+  @media (max-width:720px){
+    .intro-npc{grid-template-columns:1fr;gap:24px;padding:20px;}
+    .npc-dialog{padding-left:0;border-left:none;border-top:1px solid rgba(0,0,0,.12);padding-top:24px;}
+    .npc-portrait svg{width:140px;height:auto;}
+    .npc-speech{font-size:15px;line-height:2;min-height:auto;}
+    .card-head h2{font-size:20px;}
+    .tool{padding:6px 10px;}
+    .tool-icon{width:36px;height:36px;font-size:18px;}
+  }
+</style>
+</head>
+<body>
+  <section id="intro" class="overlay">
+    <div class="intro-inner intro-npc">
+      <div class="npc-portrait">
+        <svg viewBox="0 0 200 240" width="180" height="216">
+          <defs>
+            <radialGradient id="gp" cx="50%" cy="40%" r="55%">
+              <stop offset="0%" stop-color="rgba(130,160,140,.22)"/>
+              <stop offset="100%" stop-color="transparent"/>
+            </radialGradient>
+          </defs>
+          <ellipse cx="100" cy="100" rx="80" ry="90" fill="url(#gp)"/>
+          <!-- 短发女性 30 多岁 -->
+          <path d="M62 92 q-2 -32 38 -42 q40 10 38 42 q2 8 -4 16 q-6 -14 -12 -16 q-20 6 -22 10 q-2 -4 -22 -10 q-6 2 -12 16 q-6 -8 -4 -16 z" fill="#2b2520"/>
+          <ellipse cx="100" cy="92" rx="32" ry="38" fill="#f0e3cb" stroke="#2b2520" stroke-width="1"/>
+          <!-- 眉眼细细的 -->
+          <path d="M84 88 q5 -2 10 0 M106 88 q5 -2 10 0" stroke="#2b2520" stroke-width="1.2" fill="none"/>
+          <ellipse cx="89" cy="94" rx="1.8" ry="1" fill="#1a1a1a"/>
+          <ellipse cx="111" cy="94" rx="1.8" ry="1" fill="#1a1a1a"/>
+          <!-- 浅浅微笑 -->
+          <path d="M93 112 q7 4 14 0" stroke="#2b2520" stroke-width="1" fill="none"/>
+          <!-- 灰布工作罩衣 -->
+          <path d="M52 150 q15 -28 48 -28 q33 0 48 28 L 165 240 L 35 240 Z" fill="#6e6a5e" stroke="#1a1a1a" stroke-width="1"/>
+          <path d="M82 130 L100 152 L118 130" fill="#f0e3cb" stroke="#1a1a1a" stroke-width=".8"/>
+          <!-- 手中托盘上一片玉 -->
+          <rect x="76" y="200" width="48" height="6" fill="#5a5448"/>
+          <path d="M86 200 q14 -16 28 0 q-14 4 -28 0 z" fill="#a8c8b4" stroke="#3a4a3a" stroke-width=".6"/>
+        </svg>
+        <div class="npc-name">阿 瑛</div>
+        <div class="npc-id">苏州博物馆 · 藏品部</div>
+      </div>
+      <div class="npc-dialog">
+        <div class="npc-speech" id="npcSpeech"></div>
+        <div class="npc-artifact">
+          <span class="ar-tag">委托</span>
+          <span class="ar-name">玉璜 · 战国 · 五片碎玉</span>
+        </div>
+        <button id="startBtn">我 来 试 试</button>
+      </div>
+    </div>
+  </section>
+
+  <main id="scene" hidden>
+    <header class="topbar">
+      <a href="chapters.html" class="sound-toggle" style="left:24px;right:auto;text-decoration:none;font-size:11px;letter-spacing:.2em;" title="返回">←</a>
+      <div class="title-zh">修 · 战国玉璜</div>
+      <div class="progress">
+        <div class="progress-bar"><span id="pbar"></span></div>
+        <div class="progress-text"><span id="ptext">0</span>/5</div>
+      </div>
+      <a href="museum.html" class="sound-toggle" style="right:96px;text-decoration:none;font-size:11px;letter-spacing:.2em;" title="博物馆">馆</a>
+      <a href="chapters.html" class="sound-toggle" style="right:60px;text-decoration:none;font-size:11px;letter-spacing:.2em;" title="五卷">卷</a>
+      <button id="soundToggle" class="sound-toggle" title="声音开关">♪</button>
+    </header>
+
+    <div class="stage">
+      <div class="paper"></div>
+      <svg id="board" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="hint" id="hint">拖 动 玉 片 · 复 原 完 整 玉 璜</div>
+    </div>
+
+    <footer class="toolbar">
+      <div class="tool active"><div class="tool-icon">粘</div><div class="tool-name">粘接拼合</div></div>
+      <div class="tool"><div class="tool-icon">缮</div><div class="tool-name">金缮</div><div class="tool-lock">已通关</div></div>
+      <div class="tool"><div class="tool-icon">锔</div><div class="tool-name">锔瓷</div><div class="tool-lock">已通关</div></div>
+      <div class="tool"><div class="tool-icon">洗</div><div class="tool-name">化学清洗</div><div class="tool-lock">已通关</div></div>
+    </footer>
+  </main>
+
+  <section id="finale" aria-hidden="true">
+    <div class="vignette"></div>
+    <div class="finale-title">
+      <div class="zh"><span>玉</span><span>不</span><span>琢</span><span>·</span><span>不</span><span>成</span><span>器</span></div>
+      <div class="en">JADE · MADE WHOLE</div>
+    </div>
+  </section>
+
+  <section id="done" class="overlay" hidden>
+    <article class="card">
+      <div class="card-head">
+        <span class="card-tag">知 · 识</span>
+        <h2>粘接拼合 · 让破玉重归一璜</h2>
+        <p class="card-sub">玉器修复中最古老也最日常的手艺</p>
+      </div>
+      <div class="card-body">
+        <p>
+          玉器与瓷器不同——玉的硬度高、断口锋利、不易二次塑形，<em>粘接拼合</em>几乎是它唯一的修复路径。
+          从战国到清末，匠人依次使用过<em>生漆、鱼鳔胶、虫胶</em>；
+          1950 年代后才逐步引入<em>环氧树脂</em>，强度高且可逆性差，至今仍有争议。
+        </p>
+        <p class="story">
+          <strong>「曾侯乙墓」的玉佩饰</strong><br/>
+          1978 年湖北随州曾侯乙墓出土玉器 528 件，许多在两千多年的压埋中已碎成数十片。
+          <em>湖北省博物馆修复组以鱼鳔胶逐片粘接、毫米级对位</em>，
+          仅一件四节龙凤玉佩就用了三个月。
+          那枚玉佩今天仍是该馆镇馆之宝之一——它告诉我们：<em>"完整"是被修出来的</em>。
+        </p>
+        <p class="quote">"玉碎了不丢人，丢了才丢人。"</p>
+      </div>
+      <div class="card-actions">
+        <button id="museumBtn" class="btn-ghost">放入我的博物馆</button>
+        <button id="nextBtn" class="btn-primary">下 一 件 · 唐三彩马</button>
+      </div>
+    </article>
+  </section>
+
+<script>
+(()=>{
+  // ============ NPC dialog ============
+  const lines = [
+    {t:"清库房时，从一只老木盒里翻出来的。", q:false, d:.2},
+    {t:"五片碎玉，编号缺失，没有出处。", q:false, d:1.1},
+    {t:"凭纹路判断——是战国的玉璜。", q:false, d:2.0},
+    {t:"……能不能，先把它拼回完整的样子？", q:true,  d:2.9},
+  ];
+  const sp = document.getElementById("npcSpeech");
+  lines.forEach(L=>{
+    const el = document.createElement("span");
+    el.className = "line"+(L.q?" q":"");
+    el.textContent = L.t;
+    el.style.animationDelay = L.d+"s";
+    sp.appendChild(el);
+  });
+
+  // ============ Audio ============
+  let actx=null, on=true, padGain=null, pad=null;
+  function aud(){ if(actx) return actx; const C=window.AudioContext||window.webkitAudioContext; actx=new C(); return actx; }
+  function startPad(){
+    if(pad || !on) return;
+    aud();
+    padGain = actx.createGain(); padGain.gain.value=0; padGain.connect(actx.destination);
+    const freqs=[110, 165]; // A2 E3
+    pad = freqs.map(f=>{
+      const o = actx.createOscillator(); o.type="sine"; o.frequency.value=f;
+      const g = actx.createGain(); g.gain.value=0.15;
+      o.connect(g).connect(padGain); o.start();
+      return o;
+    });
+    padGain.gain.linearRampToValueAtTime(0.05, actx.currentTime+2);
+  }
+  function stopPad(){
+    if(!pad) return;
+    padGain.gain.linearRampToValueAtTime(0, actx.currentTime+1);
+    setTimeout(()=>{ try{pad.forEach(o=>o.stop());}catch(_){}; pad=null; }, 1100);
+  }
+  // jade-chime — sine + slight detune, short attack, long decay
+  function chime(f=880, dur=1.4, vol=.1){
+    if(!on) return; aud();
+    const t = actx.currentTime;
+    [0, 7, -5].forEach(cents=>{
+      const o = actx.createOscillator(); o.type="sine";
+      o.frequency.value = f * Math.pow(2, cents/1200);
+      const g = actx.createGain(); g.gain.value=0;
+      o.connect(g).connect(actx.destination);
+      g.gain.linearRampToValueAtTime(vol/3, t+.01);
+      g.gain.exponentialRampToValueAtTime(.0001, t+dur);
+      o.start(t); o.stop(t+dur+.05);
+    });
+  }
+  // soft thud when picking up
+  function thud(){
+    if(!on) return; aud();
+    const t=actx.currentTime;
+    const o=actx.createOscillator(); o.type="sine"; o.frequency.value=200;
+    o.frequency.exponentialRampToValueAtTime(80, t+.18);
+    const g=actx.createGain(); g.gain.value=0;
+    o.connect(g).connect(actx.destination);
+    g.gain.linearRampToValueAtTime(.06, t+.01);
+    g.gain.exponentialRampToValueAtTime(.0001, t+.2);
+    o.start(t); o.stop(t+.25);
+  }
+  // wrong-place soft buzz
+  function nudge(){
+    if(!on) return; aud();
+    const t=actx.currentTime;
+    const o=actx.createOscillator(); o.type="triangle"; o.frequency.value=160;
+    const g=actx.createGain(); g.gain.value=0;
+    o.connect(g).connect(actx.destination);
+    g.gain.linearRampToValueAtTime(.05, t+.01);
+    g.gain.exponentialRampToValueAtTime(.0001, t+.18);
+    o.start(t); o.stop(t+.22);
+  }
+  function finaleChord(){
+    if(!on) return;
+    // 编磬式上行 — F G A C D
+    const notes = [349.23, 392, 440, 523.25, 587.33];
+    notes.forEach((f,i)=>setTimeout(()=>chime(f*2, 2.4-i*.2, .12), i*220));
+  }
+
+  // ============ Yu-huang geometry ============
+  // The full yu-huang is a half-annulus arc, centered at (400, 280), outer R=180, inner R=100, span -10° to 190° (top arc)
+  // We slice it into 5 pieces by 4 cut angles.
+  // Stored as: each piece = {targetX, targetY (offset in final), pathD, currentX, currentY, rotation, placed}
+  // Path uses arc commands.
+  const CX=400, CY=320;
+  const RO=170, RI=100;
+  // angles in degrees, sweeping along the arc (top half: 180° = left, 360°/0° = right)
+  // We use a "shifted" coord: 0° = leftmost, 180° = rightmost, going over the top
+  // So angle a in degrees → real angle = 180 - a (CCW), point = (CX - r*cos(rad), CY - r*sin(rad))
+  function pt(r, a){
+    const rad = a * Math.PI/180;
+    return [CX - r*Math.cos(rad), CY - r*Math.sin(rad)];
+  }
+  // build a piece path between angles a1 and a2 (a1 < a2)
+  function buildPath(a1, a2){
+    const [ox1, oy1] = pt(RO, a1);
+    const [ox2, oy2] = pt(RO, a2);
+    const [ix2, iy2] = pt(RI, a2);
+    const [ix1, iy1] = pt(RI, a1);
+    const large = (a2 - a1) > 180 ? 1 : 0;
+    // Outer arc: sweep over the top, going CCW in screen space → sweepFlag should be 0
+    return `M${ox1.toFixed(2)} ${oy1.toFixed(2)}
+            A ${RO} ${RO} 0 ${large} 0 ${ox2.toFixed(2)} ${oy2.toFixed(2)}
+            L ${ix2.toFixed(2)} ${iy2.toFixed(2)}
+            A ${RI} ${RI} 0 ${large} 1 ${ix1.toFixed(2)} ${iy1.toFixed(2)}
+            Z`;
+  }
+  // 5 pieces: split angles 0, 36, 72, 108, 144, 180
+  const SPLITS = [0, 38, 78, 122, 158, 180];
+  // initial scattered positions (offset from final), and a slight rotation
+  const SCATTER = [
+    {dx:-280, dy:120,  rot:-12},
+    {dx:-180, dy:-150, rot: 18},
+    {dx:  40, dy:-180, rot:  6},
+    {dx: 220, dy:-130, rot:-20},
+    {dx: 290, dy:140,  rot: 14},
+  ];
+
+  const pieces = [];
+  for(let i=0;i<5;i++){
+    pieces.push({
+      idx:i,
+      d: buildPath(SPLITS[i], SPLITS[i+1]),
+      tx:0, ty:0, rot:0, // final transform = identity
+      cx: SCATTER[i].dx, cy: SCATTER[i].dy, crot: SCATTER[i].rot,
+      placed:false
+    });
+  }
+
+  // ============ Render board ============
+  const board = document.getElementById("board");
+  function render(){
+    let svg = `
+      <defs>
+        <radialGradient id="jadeG" cx="50%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#dbe7da"/>
+          <stop offset="55%" stop-color="#9bb5a4"/>
+          <stop offset="100%" stop-color="#4a6852"/>
+        </radialGradient>
+        <radialGradient id="jadeGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="rgba(212,175,55,.55)"/>
+          <stop offset="100%" stop-color="rgba(212,175,55,0)"/>
+        </radialGradient>
+        <pattern id="gu" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse">
+          <circle cx="7" cy="7" r="2" fill="rgba(40,60,50,.35)"/>
+        </pattern>
+        <filter id="shadow"><feGaussianBlur stdDeviation="2"/><feOffset dx="0" dy="3"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .25 0"/></filter>
+      </defs>
+
+      <!-- Wooden tray backdrop -->
+      <rect x="40" y="60" width="720" height="520" fill="rgba(90,70,50,.06)" stroke="rgba(90,70,50,.15)" stroke-width="1"/>
+
+      <!-- Slot outlines (showing where each piece goes) -->
+      <g class="slots" opacity=".25">
+    `;
+    pieces.forEach((p,i)=>{
+      svg += `<path class="slot" d="${p.d}" fill="none" stroke="${p.placed?'transparent':'#3a4a3a'}" stroke-width="1.2" stroke-dasharray="4 4"/>`;
+    });
+    svg += `</g>`;
+
+    // Full-piece highlight (only when complete) - golden glow trailing the seam
+    svg += `<g id="fullGlow" opacity="0">`;
+    pieces.forEach(p=>{
+      svg += `<path d="${p.d}" fill="url(#jadeGlow)" stroke="none"/>`;
+    });
+    svg += `</g>`;
+
+    // Render each piece (top-most last so it's draggable on top)
+    pieces.forEach((p,i)=>{
+      const tx = p.placed ? 0 : p.cx;
+      const ty = p.placed ? 0 : p.cy;
+      const rot = p.placed ? 0 : p.crot;
+      svg += `
+        <g class="piece ${p.placed?'placed':''}" data-idx="${i}"
+           transform="translate(${tx} ${ty}) rotate(${rot} ${CX} ${CY})"
+           filter="url(#shadow)">
+          <path d="${p.d}" fill="url(#jadeG)" stroke="#2b3a30" stroke-width=".8"/>
+          <path d="${p.d}" fill="url(#gu)" opacity=".75"/>
+          ${p.placed ? `<path d="${p.d}" fill="none" stroke="rgba(212,175,55,.7)" stroke-width="1.2"/>` : ''}
+        </g>`;
+    });
+
+    board.innerHTML = svg;
+    wireDrag();
+  }
+
+  // ============ Drag mechanic ============
+  let active=null, startSVGX=0, startSVGY=0, origDx=0, origDy=0;
+  function svgPoint(evt){
+    const pt = board.createSVGPoint();
+    const ev = (evt.touches && evt.touches[0]) ? evt.touches[0] : evt;
+    pt.x = ev.clientX; pt.y = ev.clientY;
+    return pt.matrixTransform(board.getScreenCTM().inverse());
+  }
+  function wireDrag(){
+    board.querySelectorAll(".piece").forEach(g=>{
+      const i = +g.dataset.idx;
+      if(pieces[i].placed) return;
+      const down = (e)=>{
+        e.preventDefault();
+        aud(); if(actx.state==="suspended") actx.resume();
+        active = i;
+        const sp = svgPoint(e);
+        startSVGX = sp.x; startSVGY = sp.y;
+        origDx = pieces[i].cx; origDy = pieces[i].cy;
+        // bring to front
+        board.appendChild(g);
+        thud();
+        document.getElementById("hint").style.opacity = "0";
+      };
+      g.addEventListener("mousedown", down);
+      g.addEventListener("touchstart", down, {passive:false});
+    });
+  }
+  function move(e){
+    if(active===null) return;
+    e.preventDefault();
+    const sp = svgPoint(e);
+    const dx = sp.x - startSVGX;
+    const dy = sp.y - startSVGY;
+    const p = pieces[active];
+    p.cx = origDx + dx;
+    p.cy = origDy + dy;
+    // soften rotation toward 0 as the piece nears origin
+    const dist = Math.hypot(p.cx, p.cy);
+    const factor = Math.min(1, dist/200);
+    p.crot = SCATTER[active].rot * factor;
+    const g = board.querySelector(`.piece[data-idx="${active}"]`);
+    if(g) g.setAttribute("transform", `translate(${p.cx} ${p.cy}) rotate(${p.crot} ${CX} ${CY})`);
+  }
+  function up(){
+    if(active===null) return;
+    const p = pieces[active];
+    const dist = Math.hypot(p.cx, p.cy);
+    if(dist < 38){
+      // snap!
+      p.cx = 0; p.cy = 0; p.crot = 0; p.placed = true;
+      const g = board.querySelector(`.piece[data-idx="${active}"]`);
+      if(g){
+        g.setAttribute("transform", `translate(0 0)`);
+        g.classList.add("placed");
+        g.querySelector("path").setAttribute("filter","");
+      }
+      // remove the slot outline
+      const slots = board.querySelector(".slots").children;
+      if(slots[active]) slots[active].setAttribute("stroke","transparent");
+      chime(880 + active*60, 1.3, .12);
+      updateProgress();
+    } else {
+      // return to scatter
+      p.cx = SCATTER[active].dx;
+      p.cy = SCATTER[active].dy;
+      p.crot = SCATTER[active].rot;
+      const g = board.querySelector(`.piece[data-idx="${active}"]`);
+      if(g) g.setAttribute("transform", `translate(${p.cx} ${p.cy}) rotate(${p.crot} ${CX} ${CY})`);
+      nudge();
+    }
+    active = null;
+  }
+  window.addEventListener("mousemove", move);
+  window.addEventListener("touchmove", move, {passive:false});
+  window.addEventListener("mouseup", up);
+  window.addEventListener("touchend", up);
+
+  function updateProgress(){
+    const done = pieces.filter(p=>p.placed).length;
+    document.getElementById("ptext").textContent = done;
+    document.getElementById("pbar").style.width = (done/5*100)+"%";
+    if(done === 5) triggerFinale();
+  }
+
+  // ============ Finale ============
+  let finished = false;
+  function triggerFinale(){
+    if(finished) return; finished = true;
+    // pulse the full glow
+    const glow = document.getElementById("fullGlow");
+    if(glow){
+      glow.style.transition = "opacity 1.5s ease";
+      glow.setAttribute("opacity","1");
+      setTimeout(()=> glow.setAttribute("opacity",".55"), 1600);
+    }
+    finaleChord();
+    stopPad();
+    setTimeout(()=>{
+      document.getElementById("finale").classList.add("show");
+    }, 400);
+    setTimeout(()=>{
+      document.getElementById("finale").classList.remove("show");
+      try{ localStorage.setItem("restored.yu-huang","1"); }catch(_){}
+      const open = ()=>document.getElementById("done").hidden = false;
+      if(window.Ad) Ad.openLamp({ artifact:"战国玉璜", lampKey:"yu-huang", onReward:open, onSkip:open });
+      else open();
+    }, 4200);
+  }
+
+  // ============ Wire ============
+  document.getElementById("startBtn").addEventListener("click", ()=>{
+    document.getElementById("intro").remove();
+    document.getElementById("scene").hidden = false;
+    aud(); if(actx.state==="suspended") actx.resume();
+    startPad();
+    render();
+  });
+  document.getElementById("soundToggle").addEventListener("click", e=>{
+    on = !on;
+    e.currentTarget.style.opacity = on ? 1 : .35;
+    if(!on) stopPad(); else startPad();
+  });
+  document.getElementById("museumBtn").addEventListener("click", ()=>location.href="museum.html");
+  document.getElementById("nextBtn").addEventListener("click", ()=>location.href="level5.html");
+})();
+</script>
+</body>
+</html>

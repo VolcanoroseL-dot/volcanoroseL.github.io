@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>修 · 五卷收纳</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#eee9dc;
+    --paper-2:#e4ddc8;
+    --ink:#1a1a1a;
+    --ink-soft:#3b3531;
+    --gold:#d4af37;
+    --gold-dark:#a3812a;
+    --celadon:#a8c8b4;
+    --celadon-dark:#6a8a7e;
+    --red:#9b2c2c;
+    --bronze:#7a5e2e;
+    --line:rgba(0,0,0,.12);
+
+    /* per-chapter accent colors */
+    --c1:#a3812a;  /* 卷一 格物 — 金 */
+    --c2:#5e7c3a;  /* 卷二 乘木 — 木 */
+    --c3:#5a6c8a;  /* 卷三 载文 — 水 */
+    --c4:#9b4a4a;  /* 卷四 经纬 — 火 */
+    --c5:#7a5a3a;  /* 卷五 依山 — 土 */
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{min-height:100%;font-family:"Noto Serif SC",serif;color:var(--ink);background:var(--paper);
+    background-image:
+      radial-gradient(circle at 15% 20%, rgba(120,100,60,.07) 0, transparent 60%),
+      radial-gradient(circle at 85% 80%, rgba(90,70,30,.06) 0, transparent 60%),
+      repeating-linear-gradient(45deg, rgba(0,0,0,.012) 0 1px, transparent 1px 6px);
+  }
+  button,a{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;text-decoration:none;}
+
+  /* topbar */
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--line);background:rgba(238,233,220,.85);backdrop-filter:blur(8px);position:sticky;top:0;z-index:50;}
+  .brand{display:flex;align-items:center;gap:14px;}
+  .seal-mini{display:grid;place-items:center;width:34px;height:34px;background:var(--red);color:var(--paper);font-family:"Ma Shan Zheng",serif;font-size:20px;border-radius:4px;}
+  .brand-zh{font-size:14px;letter-spacing:.4em;font-weight:600;}
+  .nav{display:flex;gap:24px;}
+  .nav a{font-size:12px;letter-spacing:.3em;color:var(--ink-soft);transition:color .2s;}
+  .nav a:hover{color:var(--ink);}
+  .sigils{display:flex;gap:6px;}
+  .sigil{display:grid;place-items:center;width:26px;height:26px;font-family:"Ma Shan Zheng",serif;font-size:13px;color:rgba(0,0,0,.18);border:1px solid rgba(0,0,0,.18);border-radius:3px;}
+  .sigil.lit{color:var(--paper);background:var(--red);border-color:var(--red);box-shadow:0 0 0 2px rgba(155,44,44,.15);}
+
+  /* hero */
+  .hero{padding:60px 32px 30px;text-align:center;}
+  .hero h1{font-size:32px;letter-spacing:.3em;font-weight:600;margin-bottom:14px;}
+  .hero-sub{font-size:13px;letter-spacing:.3em;color:var(--ink-soft);margin-bottom:36px;}
+  .stats{display:inline-flex;align-items:center;gap:22px;padding:18px 30px;background:rgba(255,255,255,.4);border:1px solid var(--line);}
+  .stats > div{display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .stats b{font-family:"Ma Shan Zheng",serif;font-size:24px;color:var(--ink);letter-spacing:0;}
+  .stats span{font-size:10px;letter-spacing:.3em;color:var(--ink-soft);}
+  .stats .sep{width:1px;height:30px;background:var(--line);}
+
+  /* scrolls layout — 5 vertical scroll cards */
+  .scrolls{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;padding:30px 32px 60px;max-width:1400px;margin:0 auto;}
+  .scroll{
+    position:relative;display:flex;flex-direction:column;
+    border:1px solid var(--line);background:linear-gradient(180deg, #f5efdd 0%, #ebe2c8 100%);
+    cursor:pointer;transition:all .35s cubic-bezier(.2,.8,.2,1);
+    overflow:hidden;
+  }
+  .scroll:hover{transform:translateY(-6px);box-shadow:0 12px 32px rgba(0,0,0,.12);}
+  /* top rod */
+  .scroll::before, .scroll::after{
+    content:"";position:absolute;left:-4px;right:-4px;height:14px;
+    background:linear-gradient(180deg, #6b5532 0%, #3a2a18 50%, #6b5532 100%);
+    border-radius:3px;box-shadow:0 2px 4px rgba(0,0,0,.3);
+  }
+  .scroll::before{top:0;}
+  .scroll::after{bottom:0;}
+  .scr-inner{padding:36px 18px 36px;display:flex;flex-direction:column;flex:1;gap:14px;}
+
+  /* tag at top */
+  .scr-tag{display:inline-block;font-size:10px;letter-spacing:.5em;color:var(--c-accent);padding:3px 10px;border:1px solid var(--c-accent);align-self:center;font-weight:600;}
+  .scroll[data-c="1"]{--c-accent:var(--c1);}
+  .scroll[data-c="2"]{--c-accent:var(--c2);}
+  .scroll[data-c="3"]{--c-accent:var(--c3);}
+  .scroll[data-c="4"]{--c-accent:var(--c4);}
+  .scroll[data-c="5"]{--c-accent:var(--c5);}
+
+  /* big chapter name */
+  .scr-name{
+    text-align:center;font-size:24px;letter-spacing:.4em;
+    font-weight:600;color:var(--ink);writing-mode:vertical-rl;
+    align-self:center;height:160px;font-family:"Ma Shan Zheng",serif;font-size:30px;
+    color:var(--c-accent);letter-spacing:.2em;
+  }
+  .scr-cat{text-align:center;font-size:11px;letter-spacing:.3em;color:var(--ink-soft);margin-top:auto;}
+
+  /* category story (new, replaces artifact icon grid) */
+  .scr-story{
+    font-size:12px;line-height:1.95;letter-spacing:.06em;
+    color:var(--ink-soft);
+    padding:0 6px;text-align:justify;
+    margin-top:auto;
+    border-top:1px dashed var(--line);padding-top:12px;
+  }
+
+  /* artifact silhouette mini-grid */
+  .scr-mini{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:0 6px;margin-top:auto;}
+  .mn{aspect-ratio:1;background:rgba(0,0,0,.06);border:1px solid rgba(0,0,0,.08);display:grid;place-items:center;font-family:"Ma Shan Zheng",serif;font-size:14px;color:rgba(0,0,0,.15);position:relative;overflow:hidden;}
+  .mn.lit{background:radial-gradient(ellipse at center, color-mix(in srgb, var(--c-accent) 30%, transparent), rgba(0,0,0,.05));color:var(--c-accent);border-color:color-mix(in srgb, var(--c-accent) 40%, var(--line));}
+  .mn.boss::after{content:"★";position:absolute;top:2px;right:3px;color:var(--c-accent);font-size:8px;}
+
+  /* progress + cta */
+  .scr-pg{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.15em;color:var(--ink-soft);}
+  .scr-pg .bar{flex:1;height:2px;background:rgba(0,0,0,.1);position:relative;overflow:hidden;}
+  .scr-pg .bar span{position:absolute;left:0;top:0;height:100%;width:0;background:var(--c-accent);transition:width .5s;}
+  .scr-cta{margin-top:8px;text-align:center;font-size:11px;letter-spacing:.3em;padding:10px;border-top:1px solid var(--line);color:var(--c-accent);font-weight:600;}
+
+  /* locked overlay */
+  .scroll.locked{cursor:pointer;}
+  .scroll.locked .scr-inner{filter:saturate(.4) opacity(.65);}
+  .scroll.locked::before, .scroll.locked::after{opacity:.55;}
+  .lock-badge{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:"Ma Shan Zheng",serif;font-size:28px;color:var(--ink);background:var(--paper);border:1px solid var(--ink-soft);width:54px;height:54px;display:grid;place-items:center;border-radius:50%;z-index:5;box-shadow:0 4px 16px rgba(0,0,0,.2);}
+
+  /* current chapter highlight */
+  .scroll.current{box-shadow:0 0 0 2px var(--c-accent), 0 12px 28px rgba(0,0,0,.12);}
+  .scroll.current::before, .scroll.current::after{
+    background:linear-gradient(180deg, var(--c-accent) 0%, color-mix(in srgb, var(--c-accent) 40%, #2a1a08) 50%, var(--c-accent) 100%);
+  }
+  .scroll.done{background:linear-gradient(180deg, #f0e6cc 0%, #d9c896 100%);}
+  .scroll.done .lock-badge{background:var(--red);color:var(--paper);border-color:var(--red);}
+
+  /* modal */
+  .modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:30px;}
+  .modal-mask{position:absolute;inset:0;background:rgba(20,18,14,.55);backdrop-filter:blur(4px);animation:fadeIn .3s;}
+  .modal-card{
+    position:relative;background:var(--paper);max-width:520px;width:100%;
+    padding:36px 32px;border:1px solid rgba(0,0,0,.1);box-shadow:0 20px 60px rgba(0,0,0,.3);
+    animation:popIn .4s cubic-bezier(.2,.8,.2,1);
+  }
+  .modal-card::before{content:"";position:absolute;inset:6px;border:1px solid rgba(0,0,0,.08);pointer-events:none;}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+  @keyframes popIn{from{opacity:0;transform:translateY(20px) scale(.96);}to{opacity:1;transform:none;}}
+  .modal-close{position:absolute;top:8px;right:12px;font-size:24px;color:var(--ink-soft);padding:4px 10px;}
+  .modal-close:hover{color:var(--red);}
+  .modal-tag{text-align:center;font-size:11px;letter-spacing:.5em;color:var(--red);padding-bottom:6px;border-bottom:1px solid var(--red);display:inline-block;margin:0 auto 18px;width:100%;}
+  .modal-card h2{font-size:24px;letter-spacing:.3em;font-weight:600;text-align:center;margin-bottom:6px;}
+  .pv-sub{text-align:center;font-size:12px;letter-spacing:.4em;color:var(--ink-soft);margin-bottom:24px;}
+  .pv-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:22px;}
+  .pv-grid .pm{aspect-ratio:1;background:rgba(0,0,0,.05);border:1px solid var(--line);display:grid;place-items:center;font-family:"Ma Shan Zheng",serif;font-size:18px;color:var(--ink-soft);position:relative;}
+  .pv-grid .pm.boss{background:rgba(212,175,55,.15);border-color:var(--gold-dark);color:var(--gold-dark);}
+  .pv-grid .pm.boss::after{content:"★";position:absolute;top:2px;right:3px;font-size:9px;color:var(--gold-dark);}
+  .pv-body{font-size:13px;line-height:2;color:var(--ink-soft);margin-bottom:24px;text-align:justify;}
+  .pv-actions{display:flex;gap:12px;margin-bottom:14px;}
+  .pv-actions .btn{flex:1;padding:12px;font-size:12px;letter-spacing:.3em;transition:all .25s;}
+  .pv-actions .btn.ghost{border:1px solid var(--ink-soft);color:var(--ink-soft);}
+  .pv-actions .btn.ghost:hover{background:var(--ink-soft);color:var(--paper);}
+  .pv-actions .btn.primary{background:var(--ink);color:var(--paper);}
+  .pv-actions .btn.primary:hover{background:var(--red);}
+  .pv-actions .btn[disabled]{opacity:.3;cursor:not-allowed;pointer-events:none;}
+  .pv-tip{font-size:11px;letter-spacing:.2em;color:var(--ink-soft);text-align:center;}
+  .pv-tip b{color:var(--red);font-weight:600;}
+
+  @media (max-width:900px){
+    .scrolls{grid-template-columns:repeat(2,1fr);}
+    .scr-name{height:120px;font-size:24px;}
+  }
+  @media (max-width:560px){
+    .topbar{flex-wrap:wrap;gap:12px;padding:14px 18px;}
+    .topbar .nav{order:3;width:100%;justify-content:center;}
+    .hero{padding:30px 18px 20px;}
+    .hero h1{font-size:22px;}
+    .scrolls{grid-template-columns:1fr 1fr;padding:18px;}
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="seal-mini">修</span>
+      <span class="brand-zh">五 卷 收 纳</span>
+    </div>
+    <nav class="nav">
+      <a href="museum.html">私 馆</a>
+      <a href="gdd.html">设 计</a>
+      <a href="script.html">脚 本</a>
+    </nav>
+    <div class="sigils">
+      <span class="sigil" data-c="1">一</span>
+      <span class="sigil" data-c="2">二</span>
+      <span class="sigil" data-c="3">三</span>
+      <span class="sigil" data-c="4">四</span>
+      <span class="sigil" data-c="5">五</span>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <h1>把破物 · 分卷归位</h1>
+      <p class="hero-sub">依文物保护学院的五大材质分类 · 逐卷修复 · 集印归一</p>
+      <div class="stats">
+        <div><b id="statDone">0</b><span>已 修 复</span></div>
+        <div class="sep"></div>
+        <div><b id="statTotal">25</b><span>主 线 文 物</span></div>
+        <div class="sep"></div>
+        <div><b id="statSigil">0</b><span>已 获 印 章</span></div>
+      </div>
+    </div>
+  </section>
+
+  <main class="scrolls" id="scrolls"></main>
+
+<script>
+(()=>{
+  // ============ Chapter data ============
+  const CHAPTERS = [
+    {
+      n:1, name:"格 物", cat:"硬质雕琢器物",
+      preview:"瓷器、青铜、玉石、骨甲——硬质固态器物的修复。粘接、补配、封护、做旧手法互通度高，是修复学最基础也最广博的入门。",
+      items:[
+        {id:"qinghua-bowl", short:"碗", tech:"金缮", playable:true,  href:"level1.html"},
+        {id:"longquan-cup", short:"盏", tech:"锔瓷", playable:true,  href:"level2.html"},
+        {id:"bronze-jue",   short:"爵", tech:"清洗", playable:true,  href:"level3.html"},
+        {id:"yu-huang",     short:"璜", tech:"粘接拼合", playable:true,  href:"level4.html"},
+        {id:"sancai-horse", short:"马", tech:"画意补全", playable:true,  href:"level5.html", boss:true},
+      ]
+    },
+    {
+      n:2, name:"乘 木", cat:"木竹漆编织",
+      preview:"木器、漆器、竹藤、草编。植物基材娇贵，易裂易蛀，靠鱼鳔胶粘合、桐油养护、黄柏防虫、川蜡封护——是「以柔克刚」的一卷。",
+      items:[
+        {id:"qing-lacquer", short:"奁", tech:"髹漆补配", playable:false},
+        {id:"chu-zither",   short:"瑟", tech:"鱼鳔胶粘合", playable:false},
+        {id:"bamboo-slip",  short:"简", tech:"竹篾续编", playable:false},
+        {id:"wood-buddha",  short:"佛", tech:"桐油养护", playable:false},
+        {id:"chu-coffin",   short:"棺", tech:"楚漆综合", playable:false, boss:true},
+      ]
+    },
+    {
+      n:3, name:"载 文", cat:"纸帛文书影像",
+      preview:"书画、碑帖、简牍、皮影。薄软有机质载体，怕水怕干又怕虫。命纸托裱、全色接笔、揭画心是这一卷的灵魂手艺。",
+      items:[
+        {id:"song-painting", short:"册", tech:"命纸托裱", playable:false},
+        {id:"tang-stele",    short:"帖", tech:"全色接笔", playable:false},
+        {id:"han-slip",      short:"牍", tech:"简牍回软", playable:false},
+        {id:"shadow-play",   short:"影", tech:"皮影补色", playable:false},
+        {id:"fuchun",        short:"卷", tech:"《富春》局部", playable:false, boss:true},
+      ]
+    },
+    {
+      n:4, name:"经 纬", cat:"丝麻纺织织物",
+      preview:"丝、麻、刺绣、缂丝。纤维织造结构独特，只适用经纬织补、衬纱托裱、匀色染线——一套完全自成体系的修复语言。",
+      items:[
+        {id:"xiang-emb",     short:"绣", tech:"刺绣回针", playable:false},
+        {id:"kesi-pelmet",   short:"缂", tech:"缂丝接经", playable:false},
+        {id:"hemp-banner",   short:"幡", tech:"经纬织补", playable:false},
+        {id:"silk-shroud",   short:"敛", tech:"匀色染线", playable:false},
+        {id:"mawangdui",     short:"襌", tech:"素纱襌衣", playable:false, boss:true},
+      ]
+    },
+    {
+      n:5, name:"依 山", cat:"岩土壁塑遗存",
+      preview:"石刻、泥塑、壁画、墓葬有机质。依附墙体土体，须大面积固结。糯米灰浆、麻丝泥浆、桃胶——乡土天然材料的智慧。",
+      items:[
+        {id:"stone-buddha",  short:"刻", tech:"风化层加固", playable:false},
+        {id:"clay-warrior",  short:"塑", tech:"空鼓注浆", playable:false},
+        {id:"yongle-mural",  short:"画", tech:"壁画起甲回压", playable:false},
+        {id:"tomb-seed",     short:"种", tech:"墓葬有机质", playable:false},
+        {id:"dunhuang-285",  short:"窟", tech:"莫高 285 窟", playable:false, boss:true},
+      ]
+    }
+  ];
+
+  function safeLocal(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+
+  // compute per-chapter progress
+  function chapterDone(ch){
+    return ch.items.filter(it => !!safeLocal("restored."+it.id)).length;
+  }
+  function chapterUnlocked(ch){
+    if(ch.n===1) return true;
+    const prev = CHAPTERS[ch.n-2];
+    const prevDone = chapterDone(prev);
+    return prevDone >= Math.ceil(prev.items.length * 0.8); // 80%
+  }
+  function chapterSigil(ch){
+    return !!safeLocal("sigil.chapter"+ch.n);
+  }
+  function currentChapter(){
+    // first chapter that's not fully done
+    for(const ch of CHAPTERS){
+      if(chapterDone(ch) < ch.items.length && chapterUnlocked(ch)) return ch.n;
+    }
+    return CHAPTERS.length;
+  }
+
+  // ============ Render scrolls ============
+  const wrap = document.getElementById("scrolls");
+  const cur = currentChapter();
+  CHAPTERS.forEach(ch=>{
+    const done = chapterDone(ch);
+    const total = ch.items.length;
+    const pct = Math.round(done/total*100);
+    const unlocked = chapterUnlocked(ch);
+    const isCurrent = (ch.n === cur);
+    const sigil = chapterSigil(ch);
+    const div = document.createElement("div");
+    div.className = "scroll" + (unlocked ? "" : " locked") + (isCurrent ? " current" : "") + (done===total && total>0 ? " done" : "");
+    div.dataset.c = ch.n;
+    let lockHTML = "";
+    if(sigil) lockHTML = `<div class="lock-badge" style="background:var(--red);color:var(--paper);border-color:var(--red)">印</div>`;
+    else if(!unlocked) lockHTML = `<div class="lock-badge">封</div>`;
+
+    div.innerHTML = `
+      ${lockHTML}
+      <div class="scr-inner">
+        <span class="scr-tag">卷 · ${["一","二","三","四","五"][ch.n-1]}</span>
+        <div class="scr-name">${ch.name}</div>
+        <div class="scr-cat">${ch.cat}</div>
+        <p class="scr-story">${ch.preview}</p>
+        <div class="scr-pg"><div class="bar"><span style="width:${pct}%"></span></div><span>${done}/${total}</span></div>
+      </div>
+      <div class="scr-cta">${unlocked ? (sigil ? "已 集 印 章 →" : isCurrent ? "进 入 修 复 →" : "查 看 展 厅 →") : "前 卷 未 启 ·"}</div>
+    `;
+    div.addEventListener("click", ()=>openChapter(ch));
+    wrap.appendChild(div);
+  });
+
+  // top stats
+  const allDone = CHAPTERS.reduce((s,c)=>s+chapterDone(c),0);
+  const allTotal = CHAPTERS.reduce((s,c)=>s+c.items.length,0);
+  const sigils = CHAPTERS.filter(chapterSigil).length;
+  document.getElementById("statDone").textContent = allDone;
+  document.getElementById("statTotal").textContent = allTotal;
+  document.getElementById("statSigil").textContent = sigils;
+  // sigils in topbar
+  CHAPTERS.forEach(ch=>{
+    if(chapterSigil(ch)){
+      const el = document.querySelector(`.sigil[data-c="${ch.n}"]`);
+      if(el) el.classList.add("lit");
+    }
+  });
+
+  // ============ Open chapter ============
+  function openChapter(ch){
+    const unlocked = chapterUnlocked(ch);
+    const done = chapterDone(ch);
+    const total = ch.items.length;
+    const sigil = chapterSigil(ch);
+
+    if(ch.n === 1 && unlocked){
+      // chapter 1: route into next playable, or quiz, or museum
+      if(done === total && !sigil){
+        location.href = "quiz.html?chapter=1";
+        return;
+      }
+      const next = ch.items.find(it => it.playable && !safeLocal("restored."+it.id));
+      if(next){ location.href = next.href; return; }
+      location.href = "museum.html";
+      return;
+    }
+    // for all other chapters (locked or pending content): go to museum hall view
+    location.href = "museum.html";
+  }
+})();
+</script>
+</body>
+</html>

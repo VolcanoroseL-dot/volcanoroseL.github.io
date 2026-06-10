@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>修 · 唐三彩马 · 卷一终章</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+<script>
+/* ================================================================
+   修 · 广告位 + 打赏组件
+   - Ad.openLamp({...})    关卡完成「添灯」
+   - Ad.openSkin({...})    博物馆皮肤「供奉」
+   - Ad.openRevive({...})  小考「翻签」
+   - Ad.openRubbing({...}) 通关「拓片礼」
+   - Ad.getLamps() / Ad.spendLamps(n)  灯油会计
+   状态: localStorage.lamps (int) / localStorage.adseen.{key} (1)
+=================================================================*/
+(function(){
+  if(window.Ad) return;
+
+  /* ---------- styles ---------- */
+  const css = `
+  .ad-mask{position:fixed;inset:0;background:rgba(8,6,4,.78);backdrop-filter:blur(6px);
+    z-index:9000;display:flex;align-items:center;justify-content:center;
+    animation:adFade .4s ease;font-family:"Noto Serif SC",serif;}
+  .ad-card{width:min(440px,90vw);background:linear-gradient(180deg,#1a1612,#0e0a08);
+    border:1px solid rgba(200,150,90,.3);padding:32px 28px;color:#f2e7d0;
+    box-shadow:0 20px 60px rgba(0,0,0,.6);position:relative;}
+  .ad-close{position:absolute;top:10px;right:14px;width:24px;height:24px;
+    background:none;border:none;color:rgba(242,231,208,.4);cursor:pointer;font-size:18px;}
+  .ad-close:hover{color:#c8965a;}
+  .ad-lantern{width:60px;height:78px;margin:0 auto 14px;position:relative;
+    animation:adRise 2.2s ease-in-out infinite alternate;}
+  .ad-lantern::before{content:"";position:absolute;inset:8px 6px 12px 6px;
+    background:radial-gradient(ellipse at center,#ffd98a 0%,#c87a2a 70%,#7a3a18 100%);
+    border-radius:50% / 60%;box-shadow:0 0 30px rgba(255,180,80,.5),inset 0 0 12px rgba(80,30,10,.4);}
+  .ad-lantern::after{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);
+    width:30px;height:6px;background:#3a2618;border-radius:2px;}
+  .ad-title{text-align:center;font-size:18px;letter-spacing:.3em;color:#c8965a;margin-bottom:10px;}
+  .ad-sub{text-align:center;font-size:12px;letter-spacing:.15em;color:rgba(242,231,208,.6);margin-bottom:18px;line-height:1.8;}
+  .ad-reward{margin:18px 0;padding:12px 14px;background:rgba(200,150,90,.06);
+    border-left:2px solid #c8965a;font-size:12px;letter-spacing:.1em;color:#e6c898;}
+  .ad-actions{display:flex;flex-direction:column;gap:10px;margin-top:18px;}
+  .ad-btn{padding:13px;font-size:12px;letter-spacing:.4em;cursor:pointer;
+    transition:all .3s ease;font-family:inherit;border:none;}
+  .ad-btn-primary{background:#a83a2a;color:#f2e7d0;}
+  .ad-btn-primary:hover{background:#c44a3a;transform:translateY(-1px);}
+  .ad-btn-ghost{background:transparent;color:#c8965a;border:1px solid rgba(200,150,90,.4);}
+  .ad-btn-ghost:hover{background:rgba(200,150,90,.1);}
+  .ad-btn-skip{background:transparent;color:rgba(242,231,208,.4);font-size:11px;letter-spacing:.3em;}
+  .ad-btn-skip:hover{color:rgba(242,231,208,.7);}
+  .ad-foot{margin-top:14px;text-align:center;font-size:10px;letter-spacing:.3em;color:rgba(242,231,208,.3);}
+  .ad-lamps{display:inline-block;margin-left:8px;color:#c8965a;}
+
+  /* ====== 广告播放阶段 ====== */
+  .ad-play{padding:40px 28px;text-align:center;}
+  .ad-play .smoke{width:80px;height:80px;margin:0 auto 18px;position:relative;}
+  .ad-play .smoke::before,.ad-play .smoke::after{content:"";position:absolute;left:50%;bottom:0;
+    width:14px;height:14px;background:rgba(200,150,90,.3);border-radius:50%;
+    animation:adSmoke 2.4s linear infinite;}
+  .ad-play .smoke::after{animation-delay:1.2s;}
+  .ad-play .incense{position:absolute;left:calc(50% - 1px);bottom:0;width:2px;height:60px;
+    background:linear-gradient(180deg,#c87a2a,#3a2618);}
+  .ad-play .glow{position:absolute;left:calc(50% - 4px);top:14px;width:8px;height:8px;
+    background:#ffaa55;border-radius:50%;box-shadow:0 0 16px #ff8833;}
+  .ad-play h3{font-size:15px;letter-spacing:.3em;color:#c8965a;margin-bottom:10px;}
+  .ad-play .sponsor{font-size:11px;letter-spacing:.25em;color:rgba(242,231,208,.45);margin-bottom:22px;}
+  .ad-bar{width:100%;height:3px;background:rgba(242,231,208,.1);overflow:hidden;margin-bottom:8px;}
+  .ad-bar span{display:block;height:100%;background:linear-gradient(90deg,#c87a2a,#ffd98a);width:0;}
+  .ad-time{font-size:11px;letter-spacing:.2em;color:rgba(242,231,208,.5);}
+  .ad-skip-late{margin-top:18px;font-size:10px;letter-spacing:.3em;color:rgba(242,231,208,.3);}
+
+  /* ====== 打赏 ====== */
+  .tea-card{text-align:center;padding:30px 24px;}
+  .tea-card h3{font-size:16px;letter-spacing:.3em;color:#c8965a;margin-bottom:6px;}
+  .tea-card .tea-sub{font-size:11px;letter-spacing:.25em;color:rgba(242,231,208,.5);margin-bottom:20px;}
+  .tea-amts{display:flex;gap:10px;justify-content:center;margin-bottom:18px;}
+  .tea-amts button{flex:1;padding:14px 0;font-size:13px;letter-spacing:.2em;
+    border:1px solid rgba(200,150,90,.4);background:transparent;color:#c8965a;cursor:pointer;transition:.3s;}
+  .tea-amts button:hover{background:rgba(200,150,90,.1);}
+  .tea-qr{width:160px;height:160px;margin:0 auto 12px;background:#f2e7d0;
+    display:flex;align-items:center;justify-content:center;font-size:11px;color:#3a2618;letter-spacing:.2em;text-align:center;line-height:1.6;}
+  .tea-tip{font-size:11px;letter-spacing:.2em;color:rgba(242,231,208,.45);}
+
+  @keyframes adFade{from{opacity:0}to{opacity:1}}
+  @keyframes adRise{from{transform:translateY(2px)}to{transform:translateY(-4px)}}
+  @keyframes adSmoke{
+    0%{transform:translate(-50%,0) scale(.6);opacity:.7}
+    100%{transform:translate(-50%,-80px) scale(2);opacity:0}
+  }
+  `;
+  const s = document.createElement("style");
+  s.textContent = css;
+  document.head.appendChild(s);
+
+  /* ---------- state ---------- */
+  function readInt(k){ try{ return parseInt(localStorage.getItem(k))||0; }catch(e){ return 0; } }
+  function writeInt(k,v){ try{ localStorage.setItem(k,String(v)); }catch(e){} }
+
+  function makeMask(){
+    const m = document.createElement("div");
+    m.className = "ad-mask";
+    document.body.appendChild(m);
+    return m;
+  }
+  function close(mask){ if(mask && mask.parentNode) mask.parentNode.removeChild(mask); }
+
+  /* ---------- 15s ad playback ---------- */
+  function playAd(mask, opts){
+    const dur = opts.duration || 15;
+    const card = mask.querySelector(".ad-card");
+    card.innerHTML = `
+      <div class="ad-play">
+        <div class="smoke">
+          <div class="incense"></div><div class="glow"></div>
+        </div>
+        <h3>致 谢 方 · 一 炷 香</h3>
+        <div class="sponsor">${opts.sponsor || "本期由「中国国家博物馆 · 文创」轻致谢"}</div>
+        <div class="ad-bar"><span id="adBar"></span></div>
+        <div class="ad-time"><span id="adTime">${dur}</span> s</div>
+        <div class="ad-skip-late" id="adSkipLate" hidden>5 秒后可跳过</div>
+      </div>
+    `;
+    const bar = card.querySelector("#adBar");
+    const time = card.querySelector("#adTime");
+    const skipEl = card.querySelector("#adSkipLate");
+    let start = performance.now();
+    let cancelled = false;
+    let skippable = false;
+    setTimeout(()=>{ skippable = true; skipEl.hidden = false; skipEl.textContent = "提 前 跳 过"; skipEl.style.cursor="pointer"; skipEl.onclick=()=>{ if(skippable){ finish(true); } }; }, Math.min(10000, dur*1000*0.7));
+    function tick(){
+      if(cancelled) return;
+      const t = (performance.now() - start) / 1000;
+      const p = Math.min(1, t/dur);
+      bar.style.width = (p*100)+"%";
+      time.textContent = Math.max(0, Math.ceil(dur - t));
+      if(p >= 1){ finish(false); return; }
+      requestAnimationFrame(tick);
+    }
+    function finish(early){
+      cancelled = true;
+      close(mask);
+      // 给奖励
+      if(opts.onComplete) opts.onComplete(early);
+    }
+    tick();
+  }
+
+  /* ---------- tea jar ---------- */
+  function showTea(){
+    const mask = makeMask();
+    const card = document.createElement("div");
+    card.className = "ad-card";
+    card.innerHTML = `
+      <button class="ad-close">×</button>
+      <div class="tea-card">
+        <h3>请 创 作 者 一 杯 茶</h3>
+        <div class="tea-sub">你的心意会让这件治愈小作品走得更远</div>
+        <div class="tea-amts">
+          <button data-a="1">¥ 1</button>
+          <button data-a="3">¥ 3</button>
+          <button data-a="6">¥ 6</button>
+        </div>
+        <div class="tea-qr">微信赞赏码<br/>（正式版显示）</div>
+        <div class="tea-tip">长按识别 · 或截图保存</div>
+      </div>
+    `;
+    mask.appendChild(card);
+    card.querySelector(".ad-close").onclick = ()=>close(mask);
+    mask.onclick = e=>{ if(e.target === mask) close(mask); };
+    card.querySelectorAll(".tea-amts button").forEach(b=>{
+      b.onclick = ()=>{
+        const a = b.dataset.a;
+        card.querySelector(".tea-qr").innerHTML = `请扫码支付 ¥${a}<br/><span style="font-size:9px;color:#7a4a2a;">（演示二维码）</span>`;
+      };
+    });
+  }
+
+  /* ================ API ================ */
+  const Ad = {
+    getLamps(){ return readInt("lamps"); },
+    addLamps(n){ writeInt("lamps", readInt("lamps")+n); },
+    spendLamps(n){
+      const cur = readInt("lamps");
+      if(cur < n) return false;
+      writeInt("lamps", cur - n);
+      return true;
+    },
+
+    /* ---------- P0 关卡完成「添灯」 ---------- */
+    openLamp(opts){
+      // opts: { artifact, lampKey, onReward, onSkip, allowTea=true }
+      const mask = makeMask();
+      const card = document.createElement("div");
+      card.className = "ad-card";
+      const lamps = this.getLamps();
+      card.innerHTML = `
+        <button class="ad-close">×</button>
+        <div class="ad-lantern"></div>
+        <div class="ad-title">添 一 盏 灯</div>
+        <div class="ad-sub">
+          为这件 ${opts.artifact||"文物"} 添一盏灯，<br/>
+          唤回它更多的记忆 ——
+        </div>
+        <div class="ad-reward">
+          · 解 锁 完 整 图 鉴（高清出土照 · 修复师手记）<br/>
+          · 获 得 一 盏 灯 油（可供奉博物馆皮肤）
+        </div>
+        <div class="ad-actions">
+          <button class="ad-btn ad-btn-primary" id="adGo">添 灯（约 15 秒）</button>
+          ${opts.allowTea === false ? "" : `<button class="ad-btn ad-btn-ghost" id="adTea">请 作 者 一 杯 茶</button>`}
+          <button class="ad-btn ad-btn-skip" id="adSkip">素 心 而 过</button>
+        </div>
+        <div class="ad-foot">
+          已添灯 <span class="ad-lamps">${lamps} 盏</span>
+          · 今日添灯人次 ${(7000 + Math.floor(Math.random()*999)).toLocaleString()}
+        </div>
+      `;
+      mask.appendChild(card);
+      card.querySelector(".ad-close").onclick = ()=>{ close(mask); if(opts.onSkip) opts.onSkip(); };
+      card.querySelector("#adSkip").onclick = ()=>{ close(mask); if(opts.onSkip) opts.onSkip(); };
+      card.querySelector("#adGo").onclick = ()=>{
+        playAd(mask, {
+          duration: 15,
+          sponsor: "本期由「中国国家博物馆 · 文创」轻致谢",
+          onComplete: ()=>{
+            Ad.addLamps(1);
+            if(opts.lampKey){ try{ localStorage.setItem("adseen."+opts.lampKey, "1"); }catch(e){} }
+            if(opts.onReward) opts.onReward();
+          }
+        });
+      };
+      const teaBtn = card.querySelector("#adTea");
+      if(teaBtn) teaBtn.onclick = showTea;
+    },
+
+    /* ---------- P1 博物馆皮肤「供奉」 ---------- */
+    openSkin(opts){
+      // opts: { skinName, needLamps, onUnlock, onCancel }
+      const mask = makeMask();
+      const card = document.createElement("div");
+      card.className = "ad-card";
+      const have = this.getLamps();
+      const need = opts.needLamps || 3;
+      const enough = have >= need;
+      card.innerHTML = `
+        <button class="ad-close">×</button>
+        <div class="ad-lantern"></div>
+        <div class="ad-title">供 奉 · ${opts.skinName||"限定皮肤"}</div>
+        <div class="ad-sub">
+          此皮肤需供奉 <span style="color:#c8965a">${need}</span> 盏灯油<br/>
+          你现有 <span style="color:#c8965a">${have}</span> 盏
+        </div>
+        <div class="ad-reward" style="text-align:center;">
+          ${enough
+            ? `灯油已足 · 一键供奉即可点亮`
+            : `还差 ${need-have} 盏 · 可即时添灯补足`}
+        </div>
+        <div class="ad-actions">
+          ${enough
+            ? `<button class="ad-btn ad-btn-primary" id="skinGo">供 奉 · 点 亮 皮 肤</button>`
+            : `<button class="ad-btn ad-btn-primary" id="skinAdd">添 一 盏 灯（约 15 秒）</button>`}
+          <button class="ad-btn ad-btn-ghost" id="skinTea">请 作 者 一 杯 茶</button>
+          <button class="ad-btn ad-btn-skip" id="skinSkip">改 日 再 来</button>
+        </div>
+      `;
+      mask.appendChild(card);
+      card.querySelector(".ad-close").onclick = ()=>{ close(mask); if(opts.onCancel) opts.onCancel(); };
+      card.querySelector("#skinSkip").onclick = ()=>{ close(mask); if(opts.onCancel) opts.onCancel(); };
+      card.querySelector("#skinTea").onclick = showTea;
+      const go = card.querySelector("#skinGo");
+      if(go) go.onclick = ()=>{
+        Ad.spendLamps(need);
+        close(mask);
+        if(opts.onUnlock) opts.onUnlock();
+      };
+      const add = card.querySelector("#skinAdd");
+      if(add) add.onclick = ()=>{
+        playAd(mask, {
+          duration: 15,
+          sponsor: "本期由「故宫文创」轻致谢",
+          onComplete: ()=>{
+            Ad.addLamps(1);
+            // 重新打开（更新进度）
+            setTimeout(()=>Ad.openSkin(opts), 200);
+          }
+        });
+      };
+    },
+
+    /* ---------- P2 小考「翻签」 ---------- */
+    openRevive(opts){
+      // opts: { onRevive, onGiveUp }
+      const mask = makeMask();
+      const card = document.createElement("div");
+      card.className = "ad-card";
+      card.innerHTML = `
+        <button class="ad-close">×</button>
+        <div class="ad-lantern"></div>
+        <div class="ad-title">这 一 签 · 未 中</div>
+        <div class="ad-sub">
+          要不要翻一支救签？<br/>
+          翻签可多得一次答题机会
+        </div>
+        <div class="ad-actions">
+          <button class="ad-btn ad-btn-primary" id="revGo">翻 签（约 15 秒）</button>
+          <button class="ad-btn ad-btn-skip" id="revSkip">认 命 · 重 开</button>
+        </div>
+      `;
+      mask.appendChild(card);
+      card.querySelector(".ad-close").onclick = ()=>{ close(mask); if(opts.onGiveUp) opts.onGiveUp(); };
+      card.querySelector("#revSkip").onclick = ()=>{ close(mask); if(opts.onGiveUp) opts.onGiveUp(); };
+      card.querySelector("#revGo").onclick = ()=>{
+        playAd(mask, {
+          duration: 15,
+          sponsor: "本期由「上海博物馆 · 数字展」轻致谢",
+          onComplete: ()=>{
+            Ad.addLamps(1);
+            if(opts.onRevive) opts.onRevive();
+          }
+        });
+      };
+    },
+
+    /* ---------- P3 通关「拓片礼」 ---------- */
+    openRubbing(opts){
+      // opts: { chapter, onGenerate, onSkip }
+      const mask = makeMask();
+      const card = document.createElement("div");
+      card.className = "ad-card";
+      card.innerHTML = `
+        <button class="ad-close">×</button>
+        <div class="ad-lantern"></div>
+        <div class="ad-title">拓 片 留 念</div>
+        <div class="ad-sub">
+          为「${opts.chapter||"卷一·格物"}」通关<br/>
+          制作一张你的修复拓片，可分享朋友圈
+        </div>
+        <div class="ad-reward">
+          · 高 清 PNG · 含你修复过的全部文物<br/>
+          · 可下载、可一键分享
+        </div>
+        <div class="ad-actions">
+          <button class="ad-btn ad-btn-primary" id="rubGo">制 作 拓 片（约 15 秒）</button>
+          <button class="ad-btn ad-btn-ghost" id="rubTea">请 作 者 一 杯 茶</button>
+          <button class="ad-btn ad-btn-skip" id="rubSkip">下 次 再 说</button>
+        </div>
+      `;
+      mask.appendChild(card);
+      card.querySelector(".ad-close").onclick = ()=>{ close(mask); if(opts.onSkip) opts.onSkip(); };
+      card.querySelector("#rubSkip").onclick = ()=>{ close(mask); if(opts.onSkip) opts.onSkip(); };
+      card.querySelector("#rubTea").onclick = showTea;
+      card.querySelector("#rubGo").onclick = ()=>{
+        playAd(mask, {
+          duration: 15,
+          sponsor: "本期由「陕西历史博物馆」轻致谢",
+          onComplete: ()=>{
+            Ad.addLamps(1);
+            if(opts.onGenerate) opts.onGenerate();
+          }
+        });
+      };
+    },
+
+    showTea: showTea
+  };
+
+  window.Ad = Ad;
+})();
+
+</script>
+<style>
+:root{
+  --bg:#0e0c0a; --paper:#f2e7d0; --ink:#2b2520;
+  --amber:#d8a04a; --green:#5a8a6a; --brown:#7a4a2a;
+  --red:#a83a2a; --gold:#c8965a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--paper);font-family:"Noto Serif SC",serif;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+[hidden]{display:none !important;}
+
+/* ===== Intro overlay ===== */
+.overlay{position:fixed;inset:0;background:radial-gradient(ellipse at center,#1a1612 0%,#0a0806 100%);display:flex;align-items:center;justify-content:center;z-index:50;animation:fadeIn .8s ease;}
+.intro-inner{max-width:920px;width:90%;padding:40px;}
+.intro-npc{display:grid;grid-template-columns:220px 1fr;gap:40px;align-items:start;}
+.npc-portrait{text-align:center}
+.npc-portrait svg{display:block;margin:0 auto;filter:drop-shadow(0 8px 24px rgba(0,0,0,.6));}
+.npc-name{margin-top:12px;font-size:18px;letter-spacing:.4em;color:var(--gold);font-weight:600;}
+.npc-id{margin-top:6px;font-size:11px;letter-spacing:.2em;color:rgba(242,231,208,.5);}
+.npc-dialog{padding-top:20px;}
+.npc-speech{min-height:140px;font-size:17px;line-height:2.2;letter-spacing:.08em;color:rgba(242,231,208,.92);white-space:pre-line;}
+.npc-speech .line{opacity:0;animation:typein .6s ease forwards;}
+.npc-speech .line:nth-child(1){animation-delay:.2s}
+.npc-speech .line:nth-child(2){animation-delay:1.4s}
+.npc-speech .line:nth-child(3){animation-delay:2.8s}
+.npc-speech .line:nth-child(4){animation-delay:4.2s}
+.npc-speech .line:nth-child(5){animation-delay:5.6s}
+.npc-artifact{margin-top:24px;padding:14px 18px;border:1px solid rgba(200,150,90,.3);background:rgba(200,150,90,.06);display:flex;justify-content:space-between;align-items:center;}
+.ar-tag{font-size:11px;letter-spacing:.3em;color:var(--gold);}
+.ar-name{font-size:15px;letter-spacing:.2em;}
+#startBtn{margin-top:32px;padding:14px 40px;border:1px solid var(--gold);color:var(--gold);font-size:13px;letter-spacing:.5em;background:transparent;transition:all .4s ease;opacity:0;animation:fadeIn .8s 6.8s ease forwards;}
+#startBtn:hover{background:var(--gold);color:#0e0c0a;}
+
+/* ===== Main scene ===== */
+.topbar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(0,0,0,.5),transparent);z-index:10;}
+.title-zh{font-size:13px;letter-spacing:.5em;color:var(--gold);}
+.progress{position:absolute;right:140px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:10px;}
+.progress-bar{width:120px;height:3px;background:rgba(242,231,208,.15);overflow:hidden;}
+.progress-bar span{display:block;height:100%;width:0;background:var(--gold);transition:width .3s ease;}
+.progress-text{font-size:11px;color:rgba(242,231,208,.6);letter-spacing:.1em;}
+.sound-toggle{position:absolute;right:24px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:1px solid rgba(242,231,208,.3);border-radius:50%;color:rgba(242,231,208,.7);display:flex;align-items:center;justify-content:center;font-size:14px;}
+.sound-toggle:hover{border-color:var(--gold);color:var(--gold);}
+
+.stage{position:absolute;top:48px;left:0;right:0;bottom:96px;display:flex;align-items:center;justify-content:center;}
+.paper{position:absolute;inset:24px;background:radial-gradient(ellipse at center,#1a1612 0%,#0a0806 100%);box-shadow:inset 0 0 80px rgba(0,0,0,.8);}
+#horse,#paint,#fx{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(80vw,800px);height:min(60vh,600px);}
+#paint{cursor:crosshair;}
+#fx{pointer-events:none;}
+.hint{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);font-size:12px;letter-spacing:.3em;color:rgba(242,231,208,.4);}
+
+/* ===== Toolbar ===== */
+.toolbar{position:fixed;bottom:0;left:0;right:0;height:96px;background:linear-gradient(0deg,rgba(0,0,0,.6),transparent);display:flex;align-items:center;justify-content:center;z-index:10;}
+.palette{display:flex;gap:24px;}
+.swatch{display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 14px;border:1px solid transparent;transition:all .3s ease;}
+.swatch .dot{width:36px;height:36px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2px rgba(242,231,208,.1),0 4px 12px rgba(0,0,0,.4);transition:all .3s ease;}
+.swatch .lab{font-size:11px;letter-spacing:.3em;color:rgba(242,231,208,.6);}
+.swatch.active{border-color:var(--c);}
+.swatch.active .dot{box-shadow:0 0 0 3px var(--c),0 4px 16px rgba(0,0,0,.6);transform:scale(1.1);}
+.swatch.active .lab{color:var(--c);}
+.swatch.erase .dot{background:repeating-linear-gradient(45deg,#444,#444 4px,#666 4px,#666 8px);}
+
+/* ===== Finale ===== */
+#finale{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(216,160,74,.15) 0%,#0a0806 70%);display:flex;align-items:center;justify-content:center;z-index:40;opacity:0;pointer-events:none;transition:opacity 1.8s ease;}
+#finale.show{opacity:1;}
+.vignette{position:absolute;inset:0;box-shadow:inset 0 0 200px rgba(0,0,0,.9);}
+.finale-title{text-align:center;}
+.finale-title .zh{font-family:"Ma Shan Zheng",serif;font-size:64px;color:var(--gold);letter-spacing:.3em;}
+.finale-title .zh span{display:inline-block;opacity:0;animation:riseIn 1.2s ease forwards;}
+.finale-title .zh span:nth-child(1){animation-delay:.4s}
+.finale-title .zh span:nth-child(2){animation-delay:.7s}
+.finale-title .zh span:nth-child(3){animation-delay:1.0s}
+.finale-title .zh span:nth-child(4){animation-delay:1.3s}
+.finale-title .zh span:nth-child(5){animation-delay:1.6s}
+.finale-title .en{margin-top:24px;font-size:14px;letter-spacing:.6em;color:rgba(242,231,208,.5);opacity:0;animation:fadeIn 1s 2.4s ease forwards;}
+.finale-title .sub{margin-top:18px;font-size:12px;letter-spacing:.5em;color:var(--red);opacity:0;animation:fadeIn 1s 3.2s ease forwards;}
+
+/* ===== Done card ===== */
+#done{background:radial-gradient(ellipse at center,#1a1612 0%,#0a0806 100%);overflow-y:auto;align-items:flex-start;padding:60px 20px;}
+.card{max-width:760px;width:100%;background:rgba(242,231,208,.04);border:1px solid rgba(200,150,90,.2);padding:48px;}
+.card-head{text-align:center;border-bottom:1px solid rgba(200,150,90,.2);padding-bottom:24px;margin-bottom:24px;}
+.card-tag{display:inline-block;font-size:11px;letter-spacing:.4em;color:var(--red);padding:4px 12px;border:1px solid var(--red);}
+.card-head h2{margin-top:14px;font-size:26px;letter-spacing:.2em;color:var(--gold);font-weight:600;}
+.card-sub{margin-top:8px;font-size:12px;letter-spacing:.3em;color:rgba(242,231,208,.5);}
+.card-body p{font-size:14px;line-height:2;color:rgba(242,231,208,.85);margin-bottom:18px;letter-spacing:.05em;}
+.card-body em{color:var(--gold);font-style:normal;font-weight:600;}
+.card-body .story{padding:18px;background:rgba(168,58,42,.06);border-left:2px solid var(--red);font-size:13px;}
+.card-body .quote{text-align:center;font-family:"Ma Shan Zheng",serif;font-size:18px;color:var(--gold);margin-top:24px;letter-spacing:.15em;}
+
+.chapter-prog{margin-top:32px;padding:20px;background:rgba(200,150,90,.04);border:1px dashed rgba(200,150,90,.2);}
+.cp-row{display:flex;align-items:center;gap:14px;margin-bottom:14px;}
+.cp-tag{font-size:11px;letter-spacing:.3em;color:var(--gold);white-space:nowrap;}
+.cp-bar{flex:1;height:4px;background:rgba(242,231,208,.1);overflow:hidden;}
+.cp-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--gold));transition:width 1.2s ease;}
+.cp-pct{font-size:11px;color:rgba(242,231,208,.6);letter-spacing:.1em;white-space:nowrap;}
+.cp-items{display:flex;flex-wrap:wrap;gap:8px;}
+.ci{padding:4px 10px;font-size:11px;letter-spacing:.15em;border:1px solid rgba(242,231,208,.15);color:rgba(242,231,208,.5);}
+.ci.done{border-color:var(--green);color:var(--green);}
+.ci.done.boss{border-color:var(--red);color:var(--red);background:rgba(168,58,42,.08);}
+
+.card-actions{margin-top:36px;display:flex;justify-content:center;gap:16px;flex-wrap:wrap;}
+.btn-ghost,.btn-primary{padding:12px 28px;font-size:12px;letter-spacing:.4em;transition:all .3s ease;}
+.btn-ghost{border:1px solid rgba(242,231,208,.3);color:rgba(242,231,208,.7);}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold);}
+.btn-primary{background:var(--red);color:#f2e7d0;}
+.btn-primary:hover{background:#c44a3a;transform:translateY(-1px);}
+.btn-lamp{border:1px solid var(--gold);color:var(--gold);background:rgba(200,150,90,.06);}
+.btn-lamp:hover{background:var(--gold);color:#0e0c0a;}
+
+/* Expanded content — only revealed after 添灯 */
+.expanded{display:none;}
+.expanded.unlocked{display:block;}
+.basic-only.hide{display:none;}
+.locked-hint{padding:18px;text-align:center;border:1px dashed rgba(200,150,90,.3);
+  background:rgba(200,150,90,.03);font-size:12px;letter-spacing:.2em;color:rgba(242,231,208,.5);margin:18px 0;}
+.locked-hint strong{color:var(--gold);}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes typein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes riseIn{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+.line{display:block;}
+</style>
+</head>
+<body>
+  <section id="intro" class="overlay">
+    <div class="intro-inner intro-npc">
+      <div class="npc-portrait">
+        <svg viewBox="0 0 200 240" width="180" height="216">
+          <defs>
+            <radialGradient id="gx" cx="50%" cy="40%" r="55%">
+              <stop offset="0%" stop-color="rgba(200,150,80,.18)"/>
+              <stop offset="100%" stop-color="transparent"/>
+            </radialGradient>
+          </defs>
+          <ellipse cx="100" cy="100" rx="80" ry="90" fill="url(#gx)"/>
+          <!-- 老者：花白头发、皱纹、眼袋 -->
+          <ellipse cx="100" cy="84" rx="32" ry="38" fill="#ebd8b8" stroke="#2b2520" stroke-width="1.1"/>
+          <!-- 花白短发 -->
+          <path d="M68 76 q-2 -26 32 -32 q34 6 32 32 q-4 -4 -8 -2 q-4 -8 -10 -10 q-4 4 -14 6 q-10 -2 -14 -6 q-6 2 -10 10 q-4 -2 -8 2 z" fill="#8a8a85"/>
+          <!-- 老花镜（圆形） -->
+          <circle cx="88" cy="86" r="9" fill="rgba(255,255,255,.2)" stroke="#3a2f24" stroke-width="1.4"/>
+          <circle cx="112" cy="86" r="9" fill="rgba(255,255,255,.2)" stroke="#3a2f24" stroke-width="1.4"/>
+          <line x1="97" y1="86" x2="103" y2="86" stroke="#3a2f24" stroke-width="1.2"/>
+          <circle cx="88" cy="86" r="1.4" fill="#1a1a1a"/>
+          <circle cx="112" cy="86" r="1.4" fill="#1a1a1a"/>
+          <!-- 法令纹 + 眼袋 -->
+          <path d="M84 96 q-2 6 -6 8 M116 96 q2 6 6 8" fill="none" stroke="rgba(60,40,20,.5)" stroke-width=".8"/>
+          <path d="M88 102 q12 2 24 0" fill="none" stroke="rgba(60,40,20,.4)" stroke-width=".6"/>
+          <!-- 抿嘴 -->
+          <path d="M90 114 q10 -1 20 0" stroke="#3a2f24" stroke-width="1.2" fill="none"/>
+          <!-- 深蓝/灰中山装 -->
+          <path d="M50 150 q15 -28 50 -28 q35 0 50 28 L 165 240 L 35 240 Z" fill="#3a3e48" stroke="#1a1a1a" stroke-width="1"/>
+          <path d="M82 130 L100 148 L118 130" fill="#ebd8b8" stroke="#1a1a1a" stroke-width=".8"/>
+          <!-- 胸前褪色徽章 -->
+          <circle cx="80" cy="178" r="6" fill="#7a4a2a" opacity=".8"/>
+          <text x="80" y="182" text-anchor="middle" font-family="Ma Shan Zheng" font-size="7" fill="#ebd8b8">修</text>
+        </svg>
+        <div class="npc-name">周 建 国</div>
+        <div class="npc-id">国博修复组 · 退休前最后一件</div>
+      </div>
+      <div class="npc-dialog">
+        <div class="npc-speech" id="npcSpeech"></div>
+        <div class="npc-artifact">
+          <span class="ar-tag">委托 · 卷一终章</span>
+          <span class="ar-name">三彩马 · 唐 · 巩县窑</span>
+        </div>
+        <button id="startBtn">接 下 这 件</button>
+      </div>
+    </div>
+  </section>
+
+  <main id="scene" hidden>
+    <header class="topbar">
+      <a href="chapters.html" class="sound-toggle" style="left:24px;right:auto;text-decoration:none;font-size:11px;letter-spacing:.2em;" title="返回">←</a>
+      <div class="title-zh">修 · 唐三彩马 · 卷 一 终 章</div>
+      <div class="progress">
+        <div class="progress-bar"><span id="pbar"></span></div>
+        <div class="progress-text"><span id="ptext">0</span>%</div>
+      </div>
+      <a href="museum.html" class="sound-toggle" style="right:96px;text-decoration:none;font-size:11px;letter-spacing:.2em;" title="博物馆">馆</a>
+      <a href="chapters.html" class="sound-toggle" style="right:60px;text-decoration:none;font-size:11px;letter-spacing:.2em;" title="五卷">卷</a>
+      <button id="soundToggle" class="sound-toggle" title="声音开关">♪</button>
+    </header>
+
+    <div class="stage">
+      <div class="paper"></div>
+      <svg id="horse" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet"></svg>
+      <canvas id="paint"></canvas>
+      <canvas id="fx"></canvas>
+      <div class="hint" id="hint">先 选 色 · 涂 满 釉 损 处 · 覆 盖 ≥ 55% 即 算 修 复</div>
+    </div>
+
+    <footer class="toolbar">
+      <div class="palette" id="palette">
+        <button class="swatch active" data-c="amber"  style="--c:#d8a04a" title="唐 黄">
+          <span class="dot"></span><span class="lab">唐 黄</span>
+        </button>
+        <button class="swatch" data-c="green" style="--c:#5a8a6a" title="唐 绿">
+          <span class="dot"></span><span class="lab">唐 绿</span>
+        </button>
+        <button class="swatch" data-c="brown" style="--c:#7a4a2a" title="唐 褐">
+          <span class="dot"></span><span class="lab">唐 褐</span>
+        </button>
+        <button class="swatch erase" data-c="erase" style="--c:#999" title="去 除">
+          <span class="dot"></span><span class="lab">擦 除</span>
+        </button>
+      </div>
+    </footer>
+  </main>
+
+  <section id="finale" aria-hidden="true">
+    <div class="vignette"></div>
+    <div class="finale-title">
+      <div class="zh"><span>重</span><span>现</span><span>·</span><span>唐</span><span>风</span></div>
+      <div class="en">TANG · RESTORED</div>
+      <div class="sub">— 卷 一 · 格 物 · 通 关 —</div>
+    </div>
+  </section>
+
+  <section id="done" class="overlay" hidden>
+    <article class="card">
+      <div class="card-head">
+        <span class="card-tag">知 · 识 · 卷 一 完 结</span>
+        <h2>画意补全 · 让残釉重见唐风</h2>
+        <p class="card-sub">最考验"克制"的一门手艺</p>
+      </div>
+      <div class="card-body">
+        <p>
+          画意补全（chromatic infill / inpainting），是<em>釉陶、书画、壁画</em>共用的一门手艺——
+          用接近原作的色与笔，把残缺处补到"远观完整、近看可辨"。
+          原则是<em>"可识别、可逆、不伪做"</em>：补色不能比原作鲜艳，
+          也不能假装从未损坏。
+        </p>
+        <div class="locked-hint basic-only" id="lockedHint">
+          <strong>「乾陵三彩」</strong>的完整故事 · 高清出土照 · 修复师手记<br/>
+          —— 添 一 盏 灯 即 可 解 锁 ——
+        </div>
+        <div class="expanded" id="expandedBody">
+          <p class="story">
+            <strong>「乾陵三彩」与一只缺耳的马</strong><br/>
+            1972 年陕西乾陵陪葬墓出土三彩马，左耳缺失、右后腿釉色大面积剥落。
+            <em>陕西省考古研究院修复组没有去"重塑"那只缺失的耳朵</em>——
+            他们用石膏补形、却故意以略浅的米黄留白，让观者一眼看出"这里是后补的"。
+            剥落的腿釉则以矿物颜料逐层晕染，远看与原釉一体，近看能见笔触。
+            这是<em>文物伦理</em>：修复者不抢原作的话语权。
+          </p>
+          <p class="quote">"补色，是写信给一千三百年前的工匠——别让人看不出我的字。"</p>
+        </div>
+      </div>
+      <div class="chapter-prog">
+        <div class="cp-row">
+          <span class="cp-tag">卷 一 · 格 物</span>
+          <div class="cp-bar"><span style="width:100%"></span></div>
+          <span class="cp-pct">5 / 5</span>
+        </div>
+        <div class="cp-items">
+          <span class="ci done">青花碗</span>
+          <span class="ci done">龙泉盏</span>
+          <span class="ci done">青铜爵</span>
+          <span class="ci done">战国玉璜</span>
+          <span class="ci done boss">★ 唐三彩马</span>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button id="lampBtn" class="btn-lamp">添 一 盏 灯 · 解 锁 完 整 图 鉴</button>
+        <button id="rubbingBtn" class="btn-ghost">拓 片 留 念</button>
+        <button id="museumBtn" class="btn-ghost">放入我的博物馆</button>
+        <button id="nextBtn" class="btn-primary">去 鉴 定 · 拿 印 章</button>
+      </div>
+    </article>
+  </section>
+
+<script>
+/* ===== NPC dialog ===== */
+const lines = [
+  "干了四十二年。这是退休前最后一件。",
+  "唐三彩马，巩县窑，盛唐气象，可惜釉色斑驳。",
+  "记住：补色不是重画，是替工匠递话。",
+  "宁可让人一眼看出是后补的，也不能假装从未损坏。",
+  "——选好色，慢慢上。"
+];
+const npcSpeech = document.getElementById("npcSpeech");
+npcSpeech.innerHTML = lines.map(l => `<span class="line">${l}</span>`).join("");
+
+/* ===== Audio (Web Audio synthesized) ===== */
+let actx, masterGain, soundOn = true;
+function initAudio(){
+  if(actx) return;
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = actx.createGain();
+  masterGain.gain.value = 0.4;
+  masterGain.connect(actx.destination);
+}
+function dronePad(){
+  if(!actx || !soundOn) return;
+  [110, 165, 220].forEach((f, i) => {
+    const o = actx.createOscillator();
+    o.type = "sine";
+    o.frequency.value = f;
+    const g = actx.createGain();
+    g.gain.value = 0;
+    g.gain.linearRampToValueAtTime(0.04, actx.currentTime + 3);
+    o.connect(g).connect(masterGain);
+    o.start();
+  });
+}
+function brushSound(){
+  if(!actx || !soundOn) return;
+  const noise = actx.createBufferSource();
+  const buf = actx.createBuffer(1, 4410, actx.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * (1 - i/d.length);
+  noise.buffer = buf;
+  const bp = actx.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 1800;
+  bp.Q.value = 4;
+  const g = actx.createGain();
+  g.gain.value = 0.06;
+  noise.connect(bp).connect(g).connect(masterGain);
+  noise.start();
+}
+function correctDing(){
+  if(!actx || !soundOn) return;
+  const o = actx.createOscillator();
+  o.type = "sine";
+  o.frequency.value = 1320;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.18, actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 0.6);
+  o.connect(g).connect(masterGain);
+  o.start(); o.stop(actx.currentTime + 0.6);
+}
+function wrongHint(){
+  if(!actx || !soundOn) return;
+  const o = actx.createOscillator();
+  o.type = "triangle";
+  o.frequency.value = 220;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.08, actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 0.3);
+  o.connect(g).connect(masterGain);
+  o.start(); o.stop(actx.currentTime + 0.3);
+}
+function finaleChord(){
+  if(!actx || !soundOn) return;
+  [261.6, 329.6, 392, 493.9, 587.3].forEach((f, i) => {
+    setTimeout(() => {
+      const o = actx.createOscillator();
+      o.type = "sine";
+      o.frequency.value = f;
+      const g = actx.createGain();
+      g.gain.setValueAtTime(0, actx.currentTime);
+      g.gain.linearRampToValueAtTime(0.14, actx.currentTime + 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 2.5);
+      o.connect(g).connect(masterGain);
+      o.start(); o.stop(actx.currentTime + 2.5);
+    }, i * 250);
+  });
+}
+
+document.getElementById("soundToggle").addEventListener("click", e => {
+  soundOn = !soundOn;
+  e.target.style.opacity = soundOn ? 1 : 0.3;
+});
+
+/* ===== Horse SVG ===== */
+const horseSvg = document.getElementById("horse");
+horseSvg.innerHTML = `
+  <defs>
+    <radialGradient id="bodyG" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#e6b568"/>
+      <stop offset="100%" stop-color="#a8742e"/>
+    </radialGradient>
+    <linearGradient id="saddleG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6a9a78"/>
+      <stop offset="100%" stop-color="#3e6850"/>
+    </linearGradient>
+    <radialGradient id="groundG" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="rgba(80,60,40,.4)"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="400" cy="500" rx="220" ry="20" fill="url(#groundG)"/>
+  <!-- Horse body (Tang-style, head down, sturdy) -->
+  <g id="horseBody">
+    <!-- Hind legs -->
+    <path d="M520 360 L535 480 L555 480 L545 360 Z" fill="url(#bodyG)" stroke="#5a3a1a" stroke-width="1.5"/>
+    <path d="M480 360 L495 478 L515 478 L505 360 Z" fill="url(#bodyG)" stroke="#5a3a1a" stroke-width="1.5"/>
+    <!-- Front legs -->
+    <path d="M280 360 L295 478 L315 478 L305 360 Z" fill="url(#bodyG)" stroke="#5a3a1a" stroke-width="1.5"/>
+    <path d="M240 360 L255 480 L275 480 L265 360 Z" fill="url(#bodyG)" stroke="#5a3a1a" stroke-width="1.5"/>
+    <!-- Hooves -->
+    <ellipse cx="545" cy="482" rx="12" ry="4" fill="#3a2618"/>
+    <ellipse cx="505" cy="482" rx="12" ry="4" fill="#3a2618"/>
+    <ellipse cx="305" cy="482" rx="12" ry="4" fill="#3a2618"/>
+    <ellipse cx="265" cy="482" rx="12" ry="4" fill="#3a2618"/>
+    <!-- Body torso -->
+    <path d="M230 320 Q220 240 320 220 Q420 200 520 220 Q580 230 580 320 Q580 380 540 380 L260 380 Q220 380 230 320 Z" fill="url(#bodyG)" stroke="#5a3a1a" stroke-width="2"/>
+    <!-- Chest swell -->
+    <path d="M240 280 Q220 320 240 360 Q260 340 250 280 Z" fill="#b8854a" opacity=".5"/>
+    <!-- Neck -->
+    <path d="M240 270 Q200 220 180 160 Q175 130 200 120 Q230 115 250 150 Q260 200 270 260 Z" fill="url(#bodyG)" stroke="#5a3a1a" stroke-width="2"/>
+    <!-- Head -->
+    <path d="M180 160 Q150 130 130 100 Q120 80 140 70 Q170 65 195 90 Q215 115 210 140 Q205 155 180 160 Z" fill="url(#bodyG)" stroke="#5a3a1a" stroke-width="2"/>
+    <!-- Mane (brown) -->
+    <path d="M205 130 Q230 145 255 175 Q270 210 265 250 L250 250 Q255 215 245 185 Q230 160 205 145 Z" fill="#5a3a1a"/>
+    <!-- Ear -->
+    <path d="M170 80 Q165 60 180 55 Q190 65 185 85 Z" fill="#7a4a2a" stroke="#3a2618" stroke-width="1"/>
+    <!-- Eye -->
+    <ellipse cx="160" cy="100" rx="3" ry="4" fill="#1a0e08"/>
+    <!-- Nostril -->
+    <ellipse cx="138" cy="92" rx="2.5" ry="3" fill="#3a2618"/>
+    <!-- Mouth line -->
+    <path d="M132 105 Q140 110 150 108" stroke="#3a2618" stroke-width="1" fill="none"/>
+    <!-- Saddle (green) -->
+    <path d="M330 215 Q330 200 360 200 L460 200 Q490 200 490 215 L490 260 Q490 275 460 275 L360 275 Q330 275 330 260 Z" fill="url(#saddleG)" stroke="#2a4a30" stroke-width="1.5"/>
+    <path d="M360 200 L360 275 M460 200 L460 275" stroke="#2a4a30" stroke-width=".8" opacity=".6"/>
+    <!-- Saddle blanket trim (brown) -->
+    <path d="M325 270 L495 270 L490 285 L330 285 Z" fill="#7a4a2a" stroke="#3a2618" stroke-width="1"/>
+    <!-- Tail -->
+    <path d="M580 280 Q620 290 625 340 Q620 380 600 380 Q590 360 595 340 Q590 310 580 300 Z" fill="#5a3a1a"/>
+  </g>
+  <!-- Damage patches: each gray, with data-correct color -->
+  <g id="damageLayer"></g>
+`;
+
+/* ===== Damage patches ===== */
+const damagePatches = [
+  { id:"p1", cx:280, cy:300, rx:25, ry:30, correct:"amber", label:"前腹" },
+  { id:"p2", cx:540, cy:310, rx:30, ry:28, correct:"amber", label:"后腹" },
+  { id:"p3", cx:410, cy:240, rx:35, ry:18, correct:"green", label:"鞍中" },
+  { id:"p4", cx:200, cy:200, rx:22, ry:25, correct:"amber", label:"颈" },
+  { id:"p5", cx:530, cy:420, rx:14, ry:30, correct:"amber", label:"后腿" },
+  { id:"p6", cx:240, cy:160, rx:20, ry:18, correct:"brown", label:"鬃" },
+  { id:"p7", cx:460, cy:285, rx:22, ry:10, correct:"brown", label:"鞍边" },
+];
+const dmgLayer = document.getElementById("damageLayer");
+damagePatches.forEach(p => {
+  const el = document.createElementNS("http://www.w3.org/2000/svg","ellipse");
+  el.setAttribute("cx", p.cx);
+  el.setAttribute("cy", p.cy);
+  el.setAttribute("rx", p.rx);
+  el.setAttribute("ry", p.ry);
+  el.setAttribute("fill", "#6a6055");
+  el.setAttribute("stroke", "#2a2620");
+  el.setAttribute("stroke-width", "1");
+  el.setAttribute("stroke-dasharray", "3 2");
+  el.setAttribute("opacity", "0.92");
+  el.dataset.id = p.id;
+  dmgLayer.appendChild(el);
+});
+
+/* ===== Canvas painting ===== */
+const paint = document.getElementById("paint");
+const pctx = paint.getContext("2d");
+const fx = document.getElementById("fx");
+const fxctx = fx.getContext("2d");
+
+function resizeCanvas(){
+  [paint, fx].forEach(c => {
+    c.width = 800;
+    c.height = 600;
+  });
+}
+resizeCanvas();
+
+const colorMap = {
+  amber: "#d8a04a",
+  green: "#5a8a6a",
+  brown: "#7a4a2a"
+};
+let activeColor = "amber";
+document.querySelectorAll(".swatch").forEach(s => {
+  s.addEventListener("click", () => {
+    document.querySelectorAll(".swatch").forEach(x => x.classList.remove("active"));
+    s.classList.add("active");
+    activeColor = s.dataset.c;
+  });
+});
+
+/* Convert mouse to SVG coords */
+function svgPt(evt){
+  const rect = paint.getBoundingClientRect();
+  const x = (evt.clientX - rect.left) * (800 / rect.width);
+  const y = (evt.clientY - rect.top) * (600 / rect.height);
+  return { x, y };
+}
+
+let drawing = false;
+let lastP = null;
+const patchScore = {}; // id -> { coverage, done, area }
+
+function hexToRgb(h){
+  const n = parseInt(h.slice(1), 16);
+  return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+}
+
+// Precompute each patch's pixel area (整数像素)
+damagePatches.forEach(p => {
+  let count = 0;
+  for(let y = Math.floor(p.cy - p.ry); y <= Math.ceil(p.cy + p.ry); y++){
+    for(let x = Math.floor(p.cx - p.rx); x <= Math.ceil(p.cx + p.rx); x++){
+      const dx = (x - p.cx) / p.rx, dy = (y - p.cy) / p.ry;
+      if(dx*dx + dy*dy <= 1) count++;
+    }
+  }
+  patchScore[p.id] = { coverage: 0, done: false, area: count, wrongWarn: 0 };
+});
+
+function inEllipse(p, x, y){
+  const dx = (x - p.cx) / p.rx;
+  const dy = (y - p.cy) / p.ry;
+  return dx*dx + dy*dy <= 1;
+}
+
+function paintAt(x, y){
+  const r = 14;
+  if(activeColor === "erase"){
+    pctx.globalCompositeOperation = "destination-out";
+    pctx.beginPath();
+    pctx.arc(x, y, r, 0, Math.PI*2);
+    pctx.fill();
+    pctx.globalCompositeOperation = "source-over";
+    return;
+  }
+  pctx.fillStyle = colorMap[activeColor];
+  pctx.globalAlpha = 0.85;
+  pctx.beginPath();
+  pctx.arc(x, y, r, 0, Math.PI*2);
+  pctx.fill();
+  pctx.globalAlpha = 1;
+}
+
+/* —— 像素级覆盖率测量 —— */
+function measurePatch(p){
+  const x0 = Math.max(0, Math.floor(p.cx - p.rx));
+  const y0 = Math.max(0, Math.floor(p.cy - p.ry));
+  const w = Math.min(paint.width - x0, Math.ceil(p.rx*2) + 1);
+  const h = Math.min(paint.height - y0, Math.ceil(p.ry*2) + 1);
+  if(w <= 0 || h <= 0) return { cov: 0, wrong: 0 };
+  let data;
+  try { data = pctx.getImageData(x0, y0, w, h).data; } catch(e){ return { cov: 0, wrong: 0 }; }
+  const tgt = hexToRgb(colorMap[p.correct]);
+  // wrong colors = the other two valid colors
+  const wrongTgts = Object.keys(colorMap).filter(k => k !== p.correct).map(k => hexToRgb(colorMap[k]));
+  let painted = 0, wrong = 0;
+  for(let yy=0; yy<h; yy++){
+    for(let xx=0; xx<w; xx++){
+      const px = x0+xx, py = y0+yy;
+      const dx = (px - p.cx)/p.rx, dy = (py - p.cy)/p.ry;
+      if(dx*dx + dy*dy > 1) continue;
+      const i = (yy*w + xx)*4;
+      if(data[i+3] < 60) continue;
+      const r=data[i], g=data[i+1], b=data[i+2];
+      const dCor = (r-tgt.r)**2 + (g-tgt.g)**2 + (b-tgt.b)**2;
+      if(dCor < 4500){ painted++; continue; }
+      for(const wt of wrongTgts){
+        if((r-wt.r)**2 + (g-wt.g)**2 + (b-wt.b)**2 < 4500){ wrong++; break; }
+      }
+    }
+  }
+  return { cov: painted / patchScore[p.id].area, wrong: wrong / patchScore[p.id].area };
+}
+
+let measureTimer = 0;
+function evaluatePatches(){
+  damagePatches.forEach(p => {
+    const s = patchScore[p.id];
+    if(s.done) return;
+    const { cov, wrong } = measurePatch(p);
+    s.coverage = cov;
+    const el = dmgLayer.querySelector(`[data-id="${p.id}"]`);
+    if(el){
+      // 损伤随正确覆盖率渐隐；错色不会让它消失
+      const op = Math.max(0, 0.92 - cov * 1.05);
+      el.setAttribute("opacity", String(op));
+      // 错色蒙到 30% 以上时，描边变红警示
+      if(wrong > 0.3 && cov < 0.4){
+        el.setAttribute("stroke", "#a83a2a");
+        if(performance.now() - s.wrongWarn > 1500){
+          s.wrongWarn = performance.now();
+          wrongHint();
+        }
+      } else {
+        el.setAttribute("stroke", "#2a2620");
+      }
+    }
+    if(cov >= 0.55){
+      s.done = true;
+      markPatchDone(p);
+      correctDing();
+      updateProgress();
+    }
+  });
+}
+
+function scheduleEvaluate(force){
+  const now = performance.now();
+  if(!force && now - measureTimer < 160) return;
+  measureTimer = now;
+  evaluatePatches();
+}
+
+function markPatchDone(p){
+  const el = dmgLayer.querySelector(`[data-id="${p.id}"]`);
+  if(el){
+    el.style.transition = "opacity 1.2s ease";
+    el.setAttribute("stroke-dasharray", "");
+    el.setAttribute("stroke", colorMap[p.correct]);
+    setTimeout(() => { el.style.opacity = "0"; }, 50);
+  }
+  // sparkle
+  fxctx.fillStyle = colorMap[p.correct];
+  for(let i=0;i<12;i++){
+    const a = Math.random()*Math.PI*2;
+    const r = Math.random()*40 + 10;
+    fxctx.globalAlpha = Math.random()*0.6 + 0.3;
+    fxctx.beginPath();
+    fxctx.arc(p.cx + Math.cos(a)*r, p.cy + Math.sin(a)*r, Math.random()*2+0.5, 0, Math.PI*2);
+    fxctx.fill();
+  }
+  fxctx.globalAlpha = 1;
+  setTimeout(() => fxctx.clearRect(0,0,800,600), 1200);
+}
+
+paint.addEventListener("pointerdown", e => {
+  initAudio();
+  dronePad();
+  drawing = true;
+  const p = svgPt(e);
+  lastP = p;
+  paintAt(p.x, p.y);
+  brushSound();
+});
+paint.addEventListener("pointermove", e => {
+  if(!drawing) return;
+  const p = svgPt(e);
+  // interpolate
+  if(lastP){
+    const dx = p.x - lastP.x, dy = p.y - lastP.y;
+    const dist = Math.hypot(dx, dy);
+    const steps = Math.max(1, Math.floor(dist / 5));
+    for(let i=1;i<=steps;i++){
+      paintAt(lastP.x + dx*i/steps, lastP.y + dy*i/steps);
+    }
+  } else {
+    paintAt(p.x, p.y);
+  }
+  lastP = p;
+  if(Math.random() < 0.05) brushSound();
+  scheduleEvaluate(false);
+});
+window.addEventListener("pointerup", () => {
+  if(drawing) scheduleEvaluate(true);
+  drawing = false; lastP = null;
+});
+paint.addEventListener("pointerleave", () => { lastP = null; });
+
+/* ===== Progress ===== */
+const pbar = document.getElementById("pbar");
+const ptext = document.getElementById("ptext");
+function updateProgress(){
+  const done = damagePatches.filter(p => patchScore[p.id].done).length;
+  const pct = Math.round(done / damagePatches.length * 100);
+  pbar.style.width = pct + "%";
+  ptext.textContent = pct;
+  if(done === damagePatches.length){
+    setTimeout(triggerFinale, 800);
+  }
+}
+
+/* ===== Finale ===== */
+function triggerFinale(){
+  document.getElementById("hint").style.opacity = 0;
+  const finale = document.getElementById("finale");
+  finale.classList.add("show");
+  finaleChord();
+  try { localStorage.setItem("restored.sancai-horse", "1"); } catch(e){}
+  setTimeout(() => {
+    finale.classList.remove("show");
+    document.getElementById("scene").hidden = true;
+    showDoneFlow();
+  }, 6000);
+}
+
+function showDoneFlow(){
+  // 检查是否已添过灯（避免重复弹）
+  const seen = (function(){ try{ return localStorage.getItem("adseen.sancai-horse"); }catch(e){ return null; }})();
+  if(seen) { revealDone(true); return; }
+  // Ad 组件未加载时，直接走 fallback（确保完结卡至少出现）
+  if(!window.Ad || !window.Ad.openLamp){
+    console.warn("[level5] Ad component not loaded — fallback to basic done card");
+    revealDone(false);
+    return;
+  }
+  // 弹添灯
+  try {
+    Ad.openLamp({
+      artifact: "唐三彩马",
+      lampKey: "sancai-horse",
+      onReward: () => revealDone(true),
+      onSkip: () => revealDone(false)
+    });
+  } catch(err) {
+    console.error("[level5] Ad.openLamp threw:", err);
+    revealDone(false);
+  }
+}
+
+function revealDone(unlocked){
+  document.getElementById("done").hidden = false;
+  if(unlocked){
+    document.getElementById("expandedBody").classList.add("unlocked");
+    document.getElementById("lockedHint").classList.add("hide");
+    document.getElementById("lampBtn").style.display = "none";
+  }
+  const bar = document.querySelector(".cp-bar span");
+  if(bar) bar.style.width = "100%";
+}
+
+/* ===== Start ===== */
+document.getElementById("startBtn").addEventListener("click", () => {
+  initAudio();
+  dronePad();
+  document.getElementById("intro").style.display = "none";
+  document.getElementById("scene").hidden = false;
+});
+
+/* ===== Debug 快捷键（按 D 直接通关，便于测试广告流程） ===== */
+document.addEventListener("keydown", e => {
+  if(e.key === "d" || e.key === "D"){
+    if(document.getElementById("scene").hidden) return;
+    damagePatches.forEach(p => {
+      if(!patchScore[p.id].done){
+        patchScore[p.id].done = true;
+        markPatchDone(p);
+      }
+    });
+    updateProgress();
+  }
+});
+
+/* ===== Done actions ===== */
+document.getElementById("museumBtn").addEventListener("click", () => {
+  window.location.href = "museum.html";
+});
+document.getElementById("nextBtn").addEventListener("click", () => {
+  // 卷一通关 → 拓片礼 → quiz
+  Ad.openRubbing({
+    chapter: "卷一 · 格物",
+    onGenerate: () => generateRubbing(true),
+    onSkip: () => { window.location.href = "quiz.html?chapter=1"; }
+  });
+});
+document.getElementById("lampBtn").addEventListener("click", () => {
+  Ad.openLamp({
+    artifact: "唐三彩马",
+    lampKey: "sancai-horse",
+    onReward: () => revealDone(true),
+    onSkip: () => {}
+  });
+});
+document.getElementById("rubbingBtn").addEventListener("click", () => {
+  Ad.openRubbing({
+    chapter: "卷一 · 格物",
+    onGenerate: () => generateRubbing(false),
+    onSkip: () => {}
+  });
+});
+
+/* ===== 拓片礼 PNG 生成 ===== */
+function generateRubbing(thenGoQuiz){
+  const cv = document.createElement("canvas");
+  cv.width = 750; cv.height = 1334;  // 朋友圈竖图
+  const cx = cv.getContext("2d");
+  // 背景
+  cx.fillStyle = "#f2e7d0"; cx.fillRect(0,0,750,1334);
+  // 纸纹
+  for(let i=0;i<400;i++){
+    cx.fillStyle = `rgba(120,80,40,${Math.random()*.05})`;
+    cx.fillRect(Math.random()*750, Math.random()*1334, Math.random()*2, Math.random()*2);
+  }
+  // 印章
+  cx.fillStyle = "#a83a2a"; cx.fillRect(80, 80, 80, 80);
+  cx.font = "bold 36px 'Ma Shan Zheng', serif"; cx.fillStyle="#f2e7d0";
+  cx.textAlign="center"; cx.fillText("修", 120, 130);
+  // 标题
+  cx.fillStyle = "#2b1d0a";
+  cx.font = "bold 60px 'Ma Shan Zheng', serif";
+  cx.textAlign = "center";
+  cx.fillText("修 · 卷一 · 格物", 375, 200);
+  cx.font = "22px serif";
+  cx.fillStyle = "rgba(60,40,20,.7)";
+  cx.fillText("Restored · Volume I · Knowledge of Things", 375, 240);
+  // 五件文物名
+  const items = ["青花碗 · 金缮","龙泉盏 · 锔瓷","青铜爵 · 化学清洗","战国玉璜 · 粘接拼合","唐三彩马 · 画意补全"];
+  cx.font = "32px 'Noto Serif SC', serif"; cx.fillStyle = "#3a2f24";
+  items.forEach((t,i)=>{
+    cx.fillText(t, 375, 380 + i*70);
+  });
+  // 落款
+  cx.font = "italic 20px serif"; cx.fillStyle = "rgba(60,40,20,.6)";
+  cx.fillText(`修复时间 · ${new Date().toLocaleDateString("zh-CN")}`, 375, 800);
+  // 名言
+  cx.font = "italic 26px 'Ma Shan Zheng', serif"; cx.fillStyle = "#a83a2a";
+  cx.fillText('"补色，是写信给一千三百年前的工匠"', 375, 920);
+  // 二维码占位
+  cx.fillStyle = "#2b1d0a"; cx.fillRect(305, 1080, 140, 140);
+  cx.fillStyle = "#f2e7d0"; cx.font = "14px serif";
+  cx.fillText("公众号", 375, 1158);
+  cx.fillText("「修」", 375, 1180);
+  cx.fillStyle = "rgba(60,40,20,.5)"; cx.font = "16px serif";
+  cx.fillText("长按识别 · 关注后续卷次", 375, 1260);
+
+  // 下载
+  cv.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "修_卷一_拓片留念.png";
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    if(thenGoQuiz) setTimeout(()=>{ window.location.href = "quiz.html?chapter=1"; }, 800);
+  }, "image/png");
+}
+</script>
+</body>
+</html>
